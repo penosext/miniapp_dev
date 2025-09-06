@@ -37,7 +37,7 @@ const aiHistory = defineComponent({
 
     async mounted() {
         try {
-            AI.initialize()
+            AI.initialize();
             await this.loadConversationList();
         } catch (e) {
             showError(e as string || 'AI 初始化失败');
@@ -61,60 +61,66 @@ const aiHistory = defineComponent({
     methods: {
         async loadConversationList() {
             showLoading();
-            AI.getConversationList().then((list) => {
+            try {
+                const list = await AI.getConversationList();
                 this.conversationList = list;
                 this.currentConversationId = AI.getCurrentConversationId();
-            }).catch((e) => {
+            } catch (e) {
                 showError(e as string || '加载对话列表失败');
-            }).finally(() => {
+            } finally {
                 hideLoading();
-            });
+            }
         },
 
         async createConversation() {
-            AI.createConversation(`新对话 ${Date.now()}`).then(() => {
-                return this.loadConversationList();
-            }).then(() => {
+            try {
+                await AI.createConversation(`新对话 ${Date.now()}`);
+                await this.loadConversationList();
                 this.$page.finish();
-            }).catch((e) => {
+            } catch (e) {
                 showError(e as string || '创建对话失败');
-            });
+            }
         },
 
         async loadConversation(conversationId: string) {
-            AI.loadConversation(conversationId).then(() => {
+            if (!conversationId) return;
+            try {
+                await AI.loadConversation(conversationId);
                 this.currentConversationId = conversationId;
                 this.$page.finish();
-            }).catch((e) => {
+            } catch (e) {
                 showError(e as string || '加载对话失败');
-            });
+            }
         },
 
         async deleteConversation(conversationId: string) {
-            AI.deleteConversation(conversationId).then(() => {
-                return this.loadConversationList();
-            }).then(() => {
+            if (!conversationId) return;
+            try {
+                await AI.deleteConversation(conversationId);
+                await this.loadConversationList();
                 showSuccess('对话删除成功');
                 if (conversationId === this.currentConversationId) {
                     this.currentConversationId = AI.getCurrentConversationId();
                 }
-            }).catch((e) => {
+            } catch (e) {
                 showError(e as string || '删除对话失败');
-            });
+            }
         },
 
         editConversationTitle(conversationId: string, currentTitle: string) {
+            if (!conversationId) return;
             openSoftKeyboard(
                 () => currentTitle,
-                (value) => {
+                async (value) => {
                     const trimmedTitle = value.trim();
                     if (trimmedTitle && trimmedTitle !== currentTitle) {
-                        AI.updateConversationTitle(conversationId, trimmedTitle).then(() => {
+                        try {
+                            await AI.updateConversationTitle(conversationId, trimmedTitle);
                             showSuccess('标题修改成功');
-                            return this.loadConversationList();
-                        }).catch((e) => {
+                            await this.loadConversationList();
+                        } catch (e) {
                             showError(e as string || '修改对话标题失败');
-                        });
+                        }
                     }
                 },
                 (value) => {

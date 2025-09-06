@@ -37,12 +37,13 @@ export default defineComponent({
             this.messages = AI.getCurrentPath();
         } catch (e) {
             showError(e as string || '初始化失败');
+            this.messages = [];
         }
     },
 
     methods: {
         jumpToMessage(messageId: string) {
-            if (!this.aiInitialized) return;
+            if (!this.aiInitialized || !messageId) return;
             try {
                 $falcon.trigger<string>('jump', messageId);
                 this.$page.finish();

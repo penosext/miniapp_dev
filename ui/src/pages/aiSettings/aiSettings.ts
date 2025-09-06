@@ -68,31 +68,34 @@ const aiSettings = defineComponent({
             }
         },
 
-        refreshBalance() {
+        async refreshBalance() {
             this.userBalance = 0.0;
             showLoading();
-            AI.getUserBalance().then((balance) => {
+            try {
+                const balance = await AI.getUserBalance();
                 this.userBalance = balance;
-            }).catch((e) => {
+            } catch (e) {
                 showError(`获取余额失败: ${e}`);
-            }).finally(() => {
+            } finally {
                 hideLoading();
-            });
+            }
         },
 
-        refreshModels() {
+        async refreshModels() {
             this.availableModels = [];
             showLoading();
-            AI.getModels().then((models) => {
+            try {
+                const models = await AI.getModels();
                 this.availableModels = models;
-            }).catch((e) => {
+            } catch (e) {
                 showError(`获取模型列表失败: ${e}`);
-            }).finally(() => {
+            } finally {
                 hideLoading();
-            });
+            }
         },
 
         selectModel(model: string) {
+            if (!model) return;
             this.modelName = model;
             this.$forceUpdate();
         },

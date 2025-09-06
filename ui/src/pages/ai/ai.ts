@@ -76,14 +76,12 @@ const ai = defineComponent({
                     lastMessage.content = this.streamingContent;
                 }
                 else if (lastMessage) {
-                    const tempId = `streaming_${Date.now()}`;
-                    lastMessage.childIds.push(tempId);
                     const streamingMessage: ConversationNode = {
                         role: ROLE.ROLE_ASSISTANT,
-                        content: '',
+                        content: this.streamingContent,
                         timestamp: new Date().toISOString(),
-                        id: '',
-                        parentId: '',
+                        id: `streaming_${Date.now()}`,
+                        parentId: lastMessage.id,
                         childIds: [],
                         stopReason: STOP_REASON.STOP_REASON_NONE
                     };
@@ -102,52 +100,64 @@ const ai = defineComponent({
             this.refreshMessages();
         },
 
-        jumpHandler(e: { data: string }) {
+        jumpHandler(e: { data: string; }) {
             this.jumpToMessageId = e.data;
             this.$forceUpdate();
         },
 
         refreshMessages() {
             try {
+                if (!this.aiInitialized) return;
                 this.messages = AI.getCurrentPath().map((node: ConversationNode) => ({ ...node, childIds: [...node.childIds] }));
             } catch (e) {
                 showError(e as string || '获取消息失败');
+                this.messages = [];
             }
         },
-        getMessage(messageId: string): ConversationNode | undefined { return this.displayMessages.find(m => m.id === messageId); },
+        getMessage(messageId: string): ConversationNode | undefined {
+            if (!messageId) return undefined;
+            return this.displayMessages.find(m => m.id === messageId);
+        },
 
         async sendMessage(userMessage: string) {
-            if (!this.canSendMessage) return;
+            if (!this.canSendMessage || !userMessage?.trim()) return;
             userMessage = userMessage.trim();
 
             this.streamingContent = '';
 
-            AI.addUserMessage(userMessage).then(() => {
+            try {
+                await AI.addUserMessage(userMessage);
                 this.refreshMessages();
                 this.$forceUpdate();
                 this.generateResponse();
-            }).catch((e) => {
+            } catch (e) {
                 showError(e as string || '添加用户消息失败');
-            });
+            }
             this.currentInput = '';
         },
 
         async generateResponse() {
+            if (!this.aiInitialized) return;
             this.isStreaming = true;
-            AI.generateResponse().then(() => {
+            try {
+                await AI.generateResponse();
                 this.refreshMessages();
                 this.$forceUpdate();
-            }).catch((e) => {
+            } catch (e) {
                 showError(e as string || '生成响应失败');
-            }).finally(() => {
+            } finally {
                 this.isStreaming = false;
                 this.streamingContent = '';
-            });
+            }
         },
 
         stopGeneration() {
-            if (this.isStreaming) {
-                AI.stopGeneration();
+            if (this.isStreaming && this.aiInitialized) {
+                try {
+                    AI.stopGeneration();
+                } catch (e) {
+                    showError(e as string || '停止生成失败');
+                }
                 setTimeout(() => {
                     this.isStreaming = false;
                     this.streamingContent = '';
@@ -181,9 +191,11 @@ const ai = defineComponent({
         },
 
         async regenerateMessage(messageId: string) {
-            if (this.isStreaming) return;
+            if (this.isStreaming || !this.aiInitialized || !messageId) return;
             try {
-                AI.switchToNode(this.getMessage(messageId)!.parentId);
+                const message = this.getMessage(messageId);
+                if (!message || !message.parentId) return;
+                AI.switchToNode(message.parentId);
                 this.generateResponse();
             } catch (e) {
                 showError(e as string || '切换消息失败');
@@ -191,10 +203,13 @@ const ai = defineComponent({
         },
 
         switchVariant(messageId: string, direction: number) {
-            if (this.isStreaming) return;
-            const message = this.getMessage(messageId)!;
+            if (this.isStreaming || !this.aiInitialized || !messageId) return;
+            const message = this.getMessage(messageId);
+            if (!message || !message.parentId) return;
+
             const parentMessage = this.getMessage(message.parentId);
-            if (!parentMessage) return;
+            if (!parentMessage || !parentMessage.childIds.length) return;
+
             const currentIndex = parentMessage.childIds.indexOf(messageId);
             const newIndex = currentIndex + direction;
             if (newIndex >= 0 && newIndex < parentMessage.childIds.length) {
@@ -213,14 +228,17 @@ const ai = defineComponent({
         },
 
         getCurrentVariantInfo(messageId: string): string {
+            if (!messageId) return "1/1";
             return this.getVariantInfo(messageId);
         },
 
         canGoVariant(messageId: string, direction: number): boolean {
-            if (this.isStreaming) return false;
-            const message = this.getMessage(messageId)!;
+            if (this.isStreaming || !this.aiInitialized || !messageId) return false;
+            const message = this.getMessage(messageId);
+            if (!message || !message.parentId) return false;
+
             const parentMessage = this.getMessage(message.parentId);
-            if (!parentMessage) return false;
+            if (!parentMessage || !parentMessage.childIds.length) return false;
 
             const currentIndex = parentMessage.childIds.indexOf(messageId);
             if (direction < 0) {
@@ -231,8 +249,10 @@ const ai = defineComponent({
         },
 
         editUserMessage(messageId: string) {
-            if (this.isStreaming) return;
-            const message = this.getMessage(messageId)!;
+            if (this.isStreaming || !this.aiInitialized || !messageId) return;
+            const message = this.getMessage(messageId);
+            if (!message) return;
+
             openSoftKeyboard(
                 () => message.content,
                 (newContent) => {
@@ -249,9 +269,12 @@ const ai = defineComponent({
         },
 
         getVariantInfo(messageId: string): string {
-            const message = this.getMessage(messageId)!;
+            if (!messageId) return "1/1";
+            const message = this.getMessage(messageId);
+            if (!message || !message.parentId) return "1/1";
+
             const parentMessage = this.getMessage(message.parentId);
-            if (!parentMessage) return "1/1";
+            if (!parentMessage || !parentMessage.childIds.length) return "1/1";
 
             const currentIndex = parentMessage.childIds.indexOf(messageId);
             return `${currentIndex + 1}/${parentMessage.childIds.length}`;
