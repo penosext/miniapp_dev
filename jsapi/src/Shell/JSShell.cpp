@@ -1,4 +1,5 @@
 #include "JSShell.hpp"
+#include <Exceptions/AssertFailed.hpp>
 
 JSShell::JSShell() {}
 JSShell::~JSShell() {}
