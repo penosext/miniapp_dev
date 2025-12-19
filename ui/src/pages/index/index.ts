@@ -9,25 +9,28 @@ export default defineComponent({
         };
     },
 
+    mounted() {
+        // ✅ 直接拿实例，不要 new
+        this.shell = api.Shell;
+
+        // ⚠️ initialize 只需要调用一次
+        this.shell.initialize();
+    },
+
     methods: {
         openAi() {
             $falcon.navTo("ai", {});
         },
 
-        async getShell() {
-            if (!this.shell) {
-                this.shell = new api.Shell();
-                this.shell.initialize();
-            }
-            return this.shell;
-        },
-
         async createFile() {
             try {
-                const shell = await this.getShell();
+                // 防御式判断（推荐）
+                if (!this.shell || !this.shell.exec) {
+                    throw new Error("Shell not available");
+                }
 
-                await shell.exec("mkdir -p /userdisk/111");
-                await shell.exec("echo helloworld > /userdisk/111/111.txt");
+                await this.shell.exec("mkdir -p /userdisk/111");
+                await this.shell.exec("echo helloworld > /userdisk/111/111.txt");
 
                 $falcon.toast("创建成功");
             } catch (e) {
