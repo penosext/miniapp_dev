@@ -1,5 +1,5 @@
 import { defineComponent } from 'vue';
-import * as api from "langningchen";
+import { AI } from 'langningchen';
 
 export default defineComponent({
     data() {
