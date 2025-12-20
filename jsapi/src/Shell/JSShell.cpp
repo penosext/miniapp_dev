@@ -1,7 +1,6 @@
 #include "JSShell.hpp"
 #include <Exceptions/AssertFailed.hpp>
 #include <jqutil_v2/jqutil.h>
-#include <queue>
 
 JSShell::JSShell() {}
 JSShell::~JSShell() {}
@@ -225,16 +224,18 @@ void JSShell::getExitCode(JQFunctionInfo& info)
 
 void JSShell::processEvents()
 {
+    // 处理事件队列
     std::vector<Event> events;
     {
         std::lock_guard<std::mutex> lock(mutex);
         events.swap(eventQueue);
     }
     
-    // 处理事件队列
-    for (const auto& event : events) {
-        // 这里可以根据需要实现事件分发
-    }
+    // 这里可以处理事件，但当前实现中我们不需要
+    // 因为事件已经在回调中直接处理了
+    // 这个函数目前只用于清空事件队列
+    // 使用 (void)events 避免未使用变量警告
+    (void)events;
 }
 
 JSValue createShell(JQModuleEnv* env)
@@ -257,7 +258,5 @@ JSValue createShell(JQModuleEnv* env)
     tpl->SetProtoMethod("setEnv", &JSShell::setEnv);
     tpl->SetProtoMethod("getExitCode", &JSShell::getExitCode);
 
-    // 如果有基类初始化方法
-    // JSShell::InitTpl(tpl);
     return tpl->CallConstructor();
 }
