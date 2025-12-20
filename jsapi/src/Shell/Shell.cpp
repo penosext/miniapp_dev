@@ -1,15 +1,10 @@
-// Shell.cpp
 #include "Shell.hpp"
 #include <cstdio>
-#include <memory>
 #include <array>
 #include <stdexcept>
-#include <cstdlib>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <memory>
+#include <sys/wait.h> // 用于 WIFEXITED 和 WEXITSTATUS
 
-std::string Shell::exec(const std::string& cmd)
+std::tuple<std::string, int> Shell::exec(const std::string& cmd)
 {
     std::array<char, 256> buffer;
     std::string result;
@@ -21,24 +16,8 @@ std::string Shell::exec(const std::string& cmd)
     while (fgets(buffer.data(), buffer.size(), pipe) != nullptr)
         result += buffer.data();
 
-    pclose(pipe);
-    return result;
-}
+    int status = pclose(pipe); // 获取命令退出状态
+    int exit_code = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
 
-std::tuple<std::string, int> Shell::execWithExitCode(const std::string& cmd)
-{
-    std::array<char, 256> buffer;
-    std::string result;
-    
-    FILE* pipe = popen(cmd.c_str(), "r");
-    if (!pipe)
-        throw std::runtime_error("popen failed");
-
-    while (fgets(buffer.data(), buffer.size(), pipe) != nullptr)
-        result += buffer.data();
-
-    int status = pclose(pipe);
-    int exitCode = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-    
-    return std::make_tuple(result, exitCode);
+    return {result, exit_code};
 }

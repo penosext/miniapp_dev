@@ -1,48 +1,24 @@
-#include "JSShell.hpp"
-#include <Exceptions/AssertFailed.hpp>
+#pragma once
+
+#include "Shell.hpp"
+#include <jqutil_v2/jqutil.h>
+#include <memory>
+#include <mutex>
 
 using namespace JQUTIL_NS;
 
-JSShell::JSShell() {}
-JSShell::~JSShell() {}
-
-void JSShell::initialize(JQFunctionInfo& info)
+class JSShell : public JQPublishObject
 {
-    try {
-        ASSERT(info.Length() == 0);
-        std::lock_guard<std::mutex> lock(mutex);
-        shell = std::make_unique<Shell>();
-        info.GetReturnValue().Set(true);
-    } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
-    }
-}
+private:
+    std::unique_ptr<Shell> shell;
+    std::mutex mutex;
 
-void JSShell::exec(JQAsyncInfo& info)
-{
-    try {
-        ASSERT(shell != nullptr);
-        ASSERT(info.Length() == 1);
-        ASSERT(info[0].is_string());
+public:
+    JSShell();
+    ~JSShell();
 
-        std::string cmd = info[0].string_value();
-        std::string output = shell->exec(cmd);
-        info.post(output);
-    } catch (const std::exception& e) {
-        info.postError(e.what());
-    }
-}
+    void initialize(JQFunctionInfo& info);
+    void exec(JQAsyncInfo& info);
+};
 
-JSValue createShell(JQModuleEnv* env)
-{
-    JQFunctionTemplateRef tpl = JQFunctionTemplate::New(env, "Shell");
-    tpl->InstanceTemplate()->setObjectCreator([]() {
-        return new JSShell();
-    });
-
-    tpl->SetProtoMethod("initialize", &JSShell::initialize);
-    tpl->SetProtoMethodPromise("exec", &JSShell::exec);
-
-    JSShell::InitTpl(tpl);
-    return tpl->CallConstructor();
-}
+JSValue createShell(JQModuleEnv* env);
