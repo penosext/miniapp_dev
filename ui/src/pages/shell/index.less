@@ -9,14 +9,20 @@
   flex-direction: column;
 }
 
-.terminal-scroller {
+/* 终端输出区域 - 占据大部分空间 */
+.terminal-content {
   flex: 1;
   width: 100%;
+  background-color: #0c0c0c;
+}
+
+.terminal-scroller {
+  width: 100%;
+  height: 100%;
   padding-left: 10px;
   padding-right: 10px;
   padding-top: 10px;
-  padding-bottom: 10px;
-  background-color: #0c0c0c;
+  padding-bottom: 5px;
 }
 
 .terminal-line {
@@ -71,16 +77,17 @@
   font-size: 14px;
 }
 
+/* 输入区域 - 固定在底部 */
 .input-section {
   height: 50px;
   flex-direction: row;
   align-items: center;
   padding-left: 10px;
   padding-right: 10px;
+  background-color: #1a1a1a;
   border-top-width: 1px;
   border-top-style: solid;
   border-top-color: #333333;
-  background-color: #1a1a1a;
 }
 
 .input-container {
@@ -99,21 +106,23 @@
   line-height: 36px;
 }
 
+/* 操作按钮 - 紧凑布局 */
 .action-buttons {
   flex-direction: row;
-  margin-left: 10px;
+  margin-left: 8px;
 }
 
 .btn {
+  min-width: 60px;
   height: 36px;
-  padding-left: 15px;
-  padding-right: 15px;
+  padding-left: 12px;
+  padding-right: 12px;
   font-size: 14px;
   color: #ffffff;
   text-align: center;
   line-height: 36px;
   border-radius: 4px;
-  margin-left: 5px;
+  margin-left: 4px;
 }
 
 .btn-execute {
@@ -129,7 +138,9 @@
   color: #666666;
 }
 
+/* 快速命令区域 - 放在输入区域上方 */
 .quick-commands-section {
+  height: 70px;
   background-color: #1a1a1a;
   border-top-width: 1px;
   border-top-style: solid;
@@ -143,42 +154,44 @@
   color: #888888;
   margin-left: 10px;
   margin-bottom: 5px;
+  height: 15px;
+  line-height: 15px;
 }
 
-.quick-commands-grid {
+.quick-commands-container {
   flex-direction: row;
   flex-wrap: wrap;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-left: 5px;
+  padding-right: 5px;
+  height: 45px;
+  overflow: hidden;
 }
 
 .quick-command {
-  width: 110px;
-  height: 40px;
+  padding-left: 8px;
+  padding-right: 8px;
+  padding-top: 3px;
+  padding-bottom: 3px;
   background-color: #2a2a2a;
   border-radius: 4px;
   margin-right: 5px;
-  margin-bottom: 5px;
-  padding-left: 5px;
-  padding-right: 5px;
-  padding-top: 2px;
-  padding-bottom: 2px;
+  margin-bottom: 3px;
 }
 
 .quick-label {
-  font-size: 14px;
+  font-size: 12px;
   color: #00ff00;
   font-weight: bold;
-  height: 20px;
-  line-height: 20px;
+  height: 18px;
+  line-height: 18px;
   text-align: center;
 }
 
 .quick-desc {
   font-size: 10px;
   color: #888888;
-  height: 15px;
-  line-height: 15px;
+  height: 12px;
+  line-height: 12px;
   text-align: center;
 }
 
