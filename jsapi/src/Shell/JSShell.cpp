@@ -1,6 +1,5 @@
 #include "JSShell.hpp"
 #include <Exceptions/AssertFailed.hpp>
-#include <jqutil_v2/bson.h>  // 使用 Bson 构造 JS 对象
 
 JSShell::JSShell() {}
 JSShell::~JSShell() {}
@@ -25,16 +24,8 @@ void JSShell::exec(JQAsyncInfo& info)
         ASSERT(info[0].is_string());
 
         std::string cmd = info[0].string_value();
-
-        std::lock_guard<std::mutex> lock(mutex);
-        auto [output, code] = shell->exec(cmd);
-
-        // 使用 Bson 构造 JS 对象
-        Bson result;
-        result["stdout"] = output;
-        result["code"] = code;
-
-        info.post(result); // 直接返回给 JS
+        std::string output = shell->exec(cmd);
+        info.post(output);
     } catch (const std::exception& e) {
         info.postError(e.what());
     }
