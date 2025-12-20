@@ -8,10 +8,8 @@ void JSShell::initialize(JQFunctionInfo& info)
 {
     try {
         ASSERT(info.Length() == 0);
-
         std::lock_guard<std::mutex> lock(mutex);
         shell = std::make_unique<Shell>();
-
         info.GetReturnValue().Set(true);
     } catch (const std::exception& e) {
         info.GetReturnValue().ThrowInternalError(e.what());
@@ -27,14 +25,13 @@ void JSShell::exec(JQAsyncInfo& info)
 
         std::string cmd = info[0].string_value();
 
-        std::lock_guard<std::mutex> lock(mutex); // 线程安全
+        std::lock_guard<std::mutex> lock(mutex);
         auto [output, code] = shell->exec(cmd);
 
-        // 使用 info.Env() 创建 JS 对象
-        JQModuleEnv* env = info.Env(); // 获取环境
-        auto resultObj = JQObject::New(env); 
-        resultObj->Set("stdout", output);
-        resultObj->Set("code", code);
+        // 使用 tplEnv 创建 JS 对象
+        auto resultObj = JQValue::NewObject(info.tplEnv);
+        resultObj.Set("stdout", output);
+        resultObj.Set("code", code);
 
         info.post(resultObj);
     } catch (const std::exception& e) {
