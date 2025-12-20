@@ -101,6 +101,15 @@ export default defineComponent({
         this.shellInitialized = true;
         this.addTerminalLine('system', 'Shell模块初始化成功');
         
+        // 获取初始目录
+        try {
+          const result = await Shell.exec('pwd');
+          this.currentDir = result.trim();
+          this.addTerminalLine('system', `当前目录: ${this.currentDir}`);
+        } catch (error: any) {
+          this.addTerminalLine('system', `当前目录: / (默认)`);
+        }
+        
         // 测试Shell功能
         setTimeout(async () => {
           try {
@@ -146,7 +155,7 @@ export default defineComponent({
       if (!command || this.isExecuting) return;
       
       // 显示命令
-      this.addTerminalLine('command', `/$ ${command}`);
+      this.addTerminalLine('command', `${this.currentDir} $ ${command}`);
       
       // 保存到历史记录
       if (this.commandHistory[this.commandHistory.length - 1] !== command) {
@@ -155,19 +164,19 @@ export default defineComponent({
       this.historyIndex = this.commandHistory.length;
       this.inputText = '';
       
-      // 处理内置命令（这些是前端模拟的，不是真实的shell命令）
-      if (await this.handleBuiltinCommand(command)) {
-        return;
-      }
-      
       // 检查Shell状态
       if (!this.shellInitialized || !Shell) {
         this.addTerminalLine('error', '错误: Shell模块未初始化');
         return;
       }
       
-      // 执行真实的shell命令
-      await this.executeRealShellCommand(command);
+      // 处理内置命令
+      if (await this.handleBuiltinCommand(command)) {
+        return;
+      }
+      
+      // 执行命令（包含目录切换处理）
+      await this.executeCommandWithDir(command);
     },
     
     // 处理内置命令（前端模拟的）
@@ -182,18 +191,6 @@ export default defineComponent({
         case 'clear':
           this.clearTerminal();
           return true;
-          
-        case 'echo':
-          // 这里不再处理echo，交给真实的shell
-          return false;
-          
-        case 'pwd':
-          // 这里不再处理pwd，交给真实的shell
-          return false;
-          
-        case 'cd':
-          // 这里不再处理cd，交给真实的shell
-          return false;
           
         case 'history':
           this.showHistory();
@@ -212,18 +209,28 @@ export default defineComponent({
       }
     },
     
-    // 执行真实的shell命令
-    async executeRealShellCommand(command: string) {
+    // 执行命令（包含目录切换处理）
+    async executeCommandWithDir(command: string) {
       this.isExecuting = true;
       
       try {
-        console.log('执行真实shell命令:', command);
+        // 检查是否是cd命令
+        const [cmd, ...args] = command.split(' ');
+        
+        if (cmd.toLowerCase() === 'cd') {
+          await this.handleCdCommand(args);
+          return;
+        }
+        
+        console.log('执行命令:', command);
         
         // 记录开始时间
         const startTime = Date.now();
         
         // 使用langningchen.Shell.exec执行命令
-        const result = await Shell.exec(command);
+        // 在命令前加上cd到当前目录，确保在工作目录执行
+        const fullCommand = `cd "${this.currentDir}" && ${command}`;
+        const result = await Shell.exec(fullCommand);
         
         // 计算执行时间
         const endTime = Date.now();
@@ -247,6 +254,57 @@ export default defineComponent({
       }
     },
     
+    // 处理cd命令
+    async handleCdCommand(args: string[]) {
+      let targetPath = '';
+      
+      if (args.length === 0) {
+        // cd without arguments goes to home directory
+        targetPath = '~';
+      } else {
+        targetPath = args[0];
+      }
+      
+      try {
+        // 构建完整的cd命令
+        let cdCommand = '';
+        if (targetPath === '~') {
+          cdCommand = 'cd ~ && pwd';
+        } else if (targetPath.startsWith('/')) {
+          // 绝对路径
+          cdCommand = `cd "${targetPath}" && pwd`;
+        } else {
+          // 相对路径
+          cdCommand = `cd "${this.currentDir}/${targetPath}" && pwd`;
+        }
+        
+        // 执行cd命令并获取新目录
+        const result = await Shell.exec(cdCommand);
+        const newDir = result.trim();
+        
+        // 更新当前目录
+        this.currentDir = newDir;
+        
+        // 显示新目录（pwd的输出）
+        this.addTerminalLine('output', newDir);
+        
+      } catch (error: any) {
+        this.addTerminalLine('error', `cd: ${error.message || '无法切换目录'}`);
+        
+        // 尝试其他方式
+        if (targetPath.startsWith('/')) {
+          // 已经是绝对路径，尝试直接切换
+          try {
+            const result = await Shell.exec(`cd ${targetPath} && pwd`);
+            this.currentDir = result.trim();
+            this.addTerminalLine('output', this.currentDir);
+          } catch (e: any) {
+            this.addTerminalLine('error', `cd: 无法切换到目录 "${targetPath}"`);
+          }
+        }
+      }
+    },
+    
     // 测试Shell功能
     async testShell() {
       if (!this.shellInitialized || !Shell) {
@@ -258,14 +316,24 @@ export default defineComponent({
       
       const testCommands = [
         { cmd: 'echo "Shell测试成功"', desc: '基本echo命令' },
-        { cmd: 'ls /', desc: '根目录列表' },
+        { cmd: 'ls', desc: '当前目录列表' },
         { cmd: 'pwd', desc: '当前路径' },
-        { cmd: 'date', desc: '系统时间' }
+        { cmd: 'cd / && pwd', desc: '切换到根目录并显示' },
+        { cmd: 'mkdir test_folder_123', desc: '创建测试文件夹' },
+        { cmd: 'ls', desc: '检查文件夹是否创建' },
+        { cmd: 'cd / && pwd', desc: '切换回根目录' },
       ];
       
       for (const test of testCommands) {
         try {
-          const result = await Shell.exec(test.cmd);
+          // 对于cd命令，特殊处理
+          if (test.cmd.startsWith('cd')) {
+            const args = test.cmd.replace('cd ', '').split(' && ');
+            await this.handleCdCommand(args[0].split(' '));
+            continue;
+          }
+          
+          const result = await Shell.exec(`cd "${this.currentDir}" && ${test.cmd}`);
           this.addTerminalLine('output', `${test.desc}: ${result.trim()}`);
         } catch (error: any) {
           this.addTerminalLine('error', `${test.desc}失败: ${error.message}`);
@@ -293,17 +361,18 @@ history       显示命令历史
 reset         重置终端
 test          测试Shell功能
 
-=== 真实Shell命令示例 ===
+=== 真实Shell命令 ===
 所有Linux命令都可以直接执行：
 
 文件操作:
   ls            列出文件
   ls -la        详细文件列表
-  cd [目录]     切换目录
+  cd [目录]     切换目录（现在真正生效）
   pwd           显示当前目录
   cat [文件]    查看文件
   mkdir [目录]  创建目录
   rm [文件]     删除文件
+  touch [文件]  创建文件
 
 系统信息:
   ps aux        查看进程
@@ -319,6 +388,8 @@ test          测试Shell功能
 
 安装应用:
   miniapp_cli install [amr文件]  安装应用
+
+注意: 现在目录切换功能已修复，创建的文件夹会在正确的目录中。
 
 状态: ${this.shellInitialized ? 'Shell模块已就绪' : 'Shell模块未初始化'}
 `;
@@ -346,6 +417,7 @@ test          测试Shell功能
       this.commandHistory = [];
       this.historyIndex = -1;
       this.inputText = '';
+      this.currentDir = '/';
       this.addTerminalLine('system', '终端已重置');
       this.initializeShell();
     },
