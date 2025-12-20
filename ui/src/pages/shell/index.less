@@ -19,9 +19,9 @@
 .terminal-scroller {
   width: 100%;
   height: 100%;
-  padding-left: 12px;
-  padding-right: 12px;
-  padding-top: 12px;
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-top: 10px;
   padding-bottom: 8px;
   background-color: #000000;
 }
@@ -38,91 +38,54 @@
   word-break: break-word;
   white-space: pre-wrap;
   letter-spacing: 0.2px;
+  /* 确保文字显示 */
+  opacity: 1 !important;
+  visibility: visible !important;
+  color: inherit !important;
 }
 
-/* ===== 重要：确保文字颜色与背景有足够对比度 ===== */
+/* ===== 修复：确保输出文字清晰可见 ===== */
 
 /* 命令输入行 - 亮绿色 */
 .line-text.command {
-  color: #33ff33;       /* 更亮的绿色 */
+  color: #00ff00 !important;       /* 亮绿色 */
   font-weight: bold;
-  text-shadow: 0 0 5px rgba(51, 255, 51, 0.5);
 }
 
-/* 普通输出 - 明亮的白色/灰色 */
+/* 普通输出 - 明亮的白色，强制显示 */
 .line-text.output {
-  color: #f0f0f0;       /* 接近白色，确保在黑色背景上清晰可见 */
+  color: #ffffff !important;       /* 纯白色，确保可见 */
   font-weight: normal;
-  text-shadow: 0 0 2px rgba(255, 255, 255, 0.3);
 }
 
 /* 错误信息 - 亮红色 */
 .line-text.error {
-  color: #ff5555;       /* 明亮的红色 */
+  color: #ff5555 !important;       /* 明亮的红色 */
   font-weight: bold;
-  text-shadow: 0 0 5px rgba(255, 85, 85, 0.5);
-  background-color: rgba(255, 0, 0, 0.1);
-  padding: 1px 3px;
-  border-radius: 2px;
 }
 
 /* 成功信息 - 亮绿色 */
 .line-text.success {
-  color: #55ff55;       /* 明亮的绿色 */
+  color: #00ff00 !important;       /* 亮绿色 */
   font-weight: bold;
-  text-shadow: 0 0 5px rgba(85, 255, 85, 0.5);
-  background-color: rgba(0, 255, 0, 0.1);
-  padding: 1px 3px;
-  border-radius: 2px;
 }
 
 /* 警告信息 - 亮橙色 */
 .line-text.warning {
-  color: #ffaa00;       /* 明亮的橙色 */
+  color: #ffaa00 !important;       /* 亮橙色 */
   font-weight: bold;
-  text-shadow: 0 0 5px rgba(255, 170, 0, 0.5);
-  background-color: rgba(255, 170, 0, 0.1);
-  padding: 1px 3px;
-  border-radius: 2px;
 }
 
 /* 信息提示 - 亮蓝色 */
 .line-text.info {
-  color: #55aaff;       /* 明亮的蓝色 */
+  color: #55aaff !important;       /* 亮蓝色 */
   font-weight: bold;
-  text-shadow: 0 0 5px rgba(85, 170, 255, 0.5);
-  background-color: rgba(85, 170, 255, 0.1);
-  padding: 1px 3px;
-  border-radius: 2px;
 }
 
 /* 系统消息 - 亮紫色 */
 .line-text.system {
-  color: #aa66ff;       /* 明亮的紫色 */
+  color: #aa66ff !important;       /* 亮紫色 */
   font-weight: bold;
-  text-shadow: 0 0 5px rgba(170, 102, 255, 0.5);
-  background-color: rgba(170, 102, 255, 0.1);
-  padding: 1px 3px;
-  border-radius: 2px;
-}
-
-/* 特殊：目录列表和文件信息 */
-.line-text.output .dir {
-  color: #33ccff;
-  font-weight: bold;
-}
-
-.line-text.output .file {
-  color: #ffffff;
-}
-
-.line-text.output .executable {
-  color: #33ff33;
-  font-weight: bold;
-}
-
-.line-text.output .symlink {
-  color: #ff66ff;
 }
 
 /* 命令提示符 */
@@ -132,35 +95,29 @@
   margin-top: 10px;
   margin-bottom: 5px;
   padding: 4px 0;
-  border-top-width: 1px;
-  border-top-style: solid;
-  border-top-color: #333333;
 }
 
 .prompt {
-  color: #33ff33;       /* 亮绿色 */
+  color: #00ff00;       /* 亮绿色 */
   font-size: 14px;
   font-weight: bold;
-  margin-right: 10px;
-  text-shadow: 0 0 6px rgba(51, 255, 51, 0.6);
+  margin-right: 8px;
   font-family: 'Monaco', 'Consolas', monospace;
 }
 
 .cursor {
-  color: #33ff33;
+  color: #00ff00;
   font-size: 16px;
   font-weight: bold;
   animation-name: blink;
   animation-duration: 0.8s;
   animation-iteration-count: infinite;
-  text-shadow: 0 0 6px rgba(51, 255, 51, 0.6);
 }
 
 .loading {
   color: #ffaa00;
   font-size: 13px;
   margin-left: 8px;
-  text-shadow: 0 0 4px rgba(255, 170, 0, 0.5);
 }
 
 /* 输入区域 */
@@ -168,21 +125,20 @@
   height: 50px;
   flex-direction: row;
   align-items: center;
-  padding-left: 12px;
-  padding-right: 12px;
+  padding-left: 10px;
+  padding-right: 10px;
   background-color: #1a1a1a;
-  border-top-width: 2px;
+  border-top-width: 1px;
   border-top-style: solid;
   border-top-color: #333333;
-  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.8);
 }
 
 .input-container {
   flex: 1;
-  height: 36px;
+  height: 34px;
   background-color: #111111;
-  padding-left: 14px;
-  padding-right: 14px;
+  padding-left: 12px;
+  padding-right: 12px;
   border-radius: 6px;
   justify-content: center;
   border-width: 1px;
@@ -191,89 +147,77 @@
 }
 
 .input-container:active {
-  border-color: #33ff33;
+  border-color: #00ff00;
   background-color: #0a0a0a;
-  box-shadow: 0 0 8px rgba(51, 255, 51, 0.3);
 }
 
 .input-text {
   font-size: 14px;
   color: #ffffff;
-  line-height: 36px;
+  line-height: 34px;
   font-family: 'Monaco', 'Consolas', monospace;
 }
 
 /* 操作按钮 */
 .action-buttons {
   flex-direction: row;
-  margin-left: 12px;
+  margin-left: 10px;
 }
 
 .btn {
   min-width: 60px;
-  height: 36px;
-  padding-left: 16px;
-  padding-right: 16px;
-  font-size: 14px;
+  height: 34px;
+  padding-left: 14px;
+  padding-right: 14px;
+  font-size: 13px;
   color: #ffffff;
   text-align: center;
-  line-height: 36px;
+  line-height: 34px;
   border-radius: 6px;
   margin-left: 8px;
   font-weight: bold;
-  border-width: 1px;
-  border-style: solid;
 }
 
 .btn-execute {
   background-color: #0066cc;
-  border-color: #0088ff;
 }
 
 .btn-execute:active {
   background-color: #0088ff;
-  box-shadow: 0 0 10px rgba(0, 136, 255, 0.6);
 }
 
 .btn-clear {
   background-color: #444444;
-  border-color: #666666;
 }
 
 .btn-clear:active {
   background-color: #666666;
-  box-shadow: 0 0 10px rgba(102, 102, 102, 0.6);
 }
 
 .btn-disabled {
   background-color: #2a2a2a;
   color: #666666;
-  border-color: #333333;
 }
 
 /* 快速命令区域 */
 .quick-commands-section {
-  height: 80px;
+  height: 75px;
   background-color: #151515;
-  border-top-width: 2px;
+  border-top-width: 1px;
   border-top-style: solid;
   border-top-color: #222222;
-  border-bottom-width: 2px;
-  border-bottom-style: solid;
-  border-bottom-color: #222222;
-  padding-top: 8px;
-  padding-bottom: 8px;
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 
 .section-title {
   font-size: 12px;
   color: #888888;
-  margin-left: 14px;
+  margin-left: 12px;
   margin-bottom: 6px;
   height: 16px;
   line-height: 16px;
   font-family: 'Monaco', 'Consolas', monospace;
-  letter-spacing: 0.5px;
 }
 
 .quick-commands-container {
@@ -281,12 +225,8 @@
   flex-wrap: nowrap;
   padding-left: 10px;
   padding-right: 10px;
-  height: 50px;
+  height: 46px;
   overflow-x: scroll;
-  background-color: #0f0f0f;
-  border-radius: 4px;
-  margin-left: 10px;
-  margin-right: 10px;
 }
 
 .quick-command {
@@ -297,23 +237,21 @@
   padding-bottom: 6px;
   background-color: #252525;
   border-radius: 6px;
-  margin-right: 10px;
+  margin-right: 8px;
   border-width: 1px;
   border-style: solid;
   border-color: #333333;
-  min-width: 75px;
+  min-width: 70px;
 }
 
 .quick-command:active {
   background-color: #333333;
-  border-color: #33ff33;
-  box-shadow: 0 0 8px rgba(51, 255, 51, 0.4);
-  transform: translateY(1px);
+  border-color: #00ff00;
 }
 
 .quick-label {
   font-size: 13px;
-  color: #33ff33;       /* 亮绿色 */
+  color: #00ff00;
   font-weight: bold;
   height: 20px;
   line-height: 20px;
@@ -328,25 +266,6 @@
   line-height: 16px;
   text-align: center;
   font-family: 'Monaco', 'Consolas', monospace;
-}
-
-/* 滚动条样式 */
-.quick-commands-container::-webkit-scrollbar {
-  height: 5px;
-}
-
-.quick-commands-container::-webkit-scrollbar-track {
-  background: #0a0a0a;
-  border-radius: 3px;
-}
-
-.quick-commands-container::-webkit-scrollbar-thumb {
-  background: #444444;
-  border-radius: 3px;
-}
-
-.quick-commands-container::-webkit-scrollbar-thumb:hover {
-  background: #555555;
 }
 
 @keyframes blink {
