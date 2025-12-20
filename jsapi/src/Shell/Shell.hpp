@@ -1,18 +1,84 @@
 #pragma once
+
+#include "Shell.hpp"
+#include <jqutil_v2/jqutil.h>
+#include <memory>
+#include <mutex>
 #include <string>
 #include <functional>
+#include <map>
+#include <vector>
 
-class Shell {
+using namespace JQUTIL_NS;
+
+class JSShell : public JQPublishObject
+{
 public:
-    // 执行命令，返回输出
-    std::string exec(const std::string& cmd);
+    struct JSShellConfig {
+        std::string shellType = "interactive";
+        std::string shellPath = "/bin/bash";
+        bool enableColor = true;
+        int rows = 24;
+        int cols = 80;
+        JQValue env;
+    };
 
-    // 执行命令，带环境变量
-    std::string exec(const std::string& cmd, const std::string& env);
+    JSShell();
+    ~JSShell();
 
-    // 执行命令，返回输出和状态码
-    std::pair<std::string, int> execWithStatus(const std::string& cmd);
-
-    // 异步执行命令，输出通过回调返回
-    void execAsync(const std::string& cmd, std::function<void(const std::string&)> onOutput);
+    // Shell管理
+    void initialize(JQFunctionInfo& info);
+    void create(JQFunctionInfo& info);
+    
+    // 命令执行
+    void exec(JQAsyncInfo& info);
+    void execScript(JQAsyncInfo& info);
+    void execFile(JQAsyncInfo& info);
+    
+    // 交互式Shell控制
+    void start(JQFunctionInfo& info);
+    void stop(JQFunctionInfo& info);
+    void restart(JQFunctionInfo& info);
+    void write(JQFunctionInfo& info);
+    void sendSignal(JQFunctionInfo& info);
+    void sendCtrlC(JQFunctionInfo& info);
+    void sendCtrlD(JQFunctionInfo& info);
+    void sendCtrlZ(JQFunctionInfo& info);
+    
+    // 终端控制
+    void resize(JQFunctionInfo& info);
+    
+    // 信息查询
+    void getState(JQFunctionInfo& info);
+    void getPid(JQFunctionInfo& info);
+    void getHistory(JQFunctionInfo& info);
+    void clearHistory(JQFunctionInfo& info);
+    
+    // 特殊程序执行
+    void execInteractive(JQAsyncInfo& info);
+    
+private:
+    std::unique_ptr<Shell> shell;
+    std::mutex shellMutex;
+    JSShellConfig config;
+    bool isInitialized = false;
+    
+    // Shell事件回调
+    void onShellOutput(const std::string& output, bool isError);
+    void onShellStateChange(Shell::ShellState state);
+    
+    // 辅助方法
+    Shell::ShellType stringToShellType(const std::string& typeStr);
+    JQValue commandResultToJSValue(JQModuleEnv* env, const Shell::CommandResult& result);
+    JQValue shellStateToJSValue(JQModuleEnv* env, Shell::ShellState state);
+    
+    // 事件发布
+    void publishOutput(const std::string& output, bool isError = false);
+    void publishState(Shell::ShellState state);
+    void publishError(const std::string& error);
+    
+    static std::map<int, JSShell*> activeShells;
+    static std::mutex activeShellsMutex;
 };
+
+JSValue createShell(JQModuleEnv* env);
