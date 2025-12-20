@@ -1,79 +1,152 @@
-.container {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: #000000;
-    display: flex;
-    flex-direction: column;
-}
-
-.output-area {
-    flex: 1;
-    width: 100%;
-    padding: 10px;
-    background-color: #0c0c0c;
-}
-
-.output-text {
-    font-size: 14px;
-    color: #00ff00; // 经典的终端绿
-    font-family: monospace;
-    line-height: 18px;
-}
-
-.input-bar {
-    height: 40px;
-    flex-direction: row;
-    align-items: center;
-    padding: 0 10px;
-    border-top-width: 1px;
-    border-top-style: solid;
-    border-top-color: #333;
-    background-color: #1a1a1a;
-}
-
-.prompt {
+// 输出行样式
+.output-line {
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin-bottom: 2px;
+  
+  &.command-line {
     color: #00ff00;
-    font-size: 18px;
+    font-weight: bold;
+    
+    &::before {
+      content: "> ";
+      color: #00ff00;
+    }
+  }
+  
+  &.output-line {
+    color: #cccccc;
+  }
+  
+  &.error-line {
+    color: #ff5555;
+  }
+}
+
+// 命令行提示
+.command-prompt {
+  display: flex;
+  align-items: center;
+  margin-top: 5px;
+  
+  .prompt {
+    color: #00ff00;
     font-weight: bold;
     margin-right: 5px;
+  }
+  
+  .cursor {
+    color: #00ff00;
+    animation: blink 1s infinite;
+  }
 }
 
-.input-trigger {
-    flex: 1;
-    height: 30px;
-    justify-content: center;
-    background-color: #000;
-    padding: 0 5px;
-    border-radius: 4px;
-}
-
-.input-placeholder {
-    font-size: 14px;
-    color: #888;
-}
-
-.btn-group {
-    flex-direction: row;
-    margin-left: 5px;
-}
-
-.btn {
-    padding: 5px 10px;
-    font-size: 14px;
-    color: #ffffff;
-    text-align: center;
-}
-
-.run-btn {
-    background-color: #007bff;
+// 执行中提示
+.executing-prompt {
+  display: flex;
+  align-items: center;
+  margin-top: 5px;
+  
+  .loading {
+    color: #ffaa00;
     margin-right: 5px;
-    border-radius: 4px;
+  }
+  
+  .blinking-cursor {
+    color: #ffaa00;
+    animation: blink 0.5s infinite;
+  }
 }
 
-.clear-btn {
+// 命令输入框
+.cmd-input {
+  flex: 1;
+  height: 35px;
+  background-color: #000;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 0 10px;
+  font-size: 14px;
+  color: #ffffff;
+  font-family: monospace;
+  
+  &:focus {
+    outline: none;
+    border-color: #007bff;
+  }
+  
+  &:disabled {
+    background-color: #222;
+    color: #666;
+    cursor: not-allowed;
+  }
+  
+  &::placeholder {
+    color: #666;
+  }
+}
+
+// 快速命令区域
+.quick-commands {
+  height: 40px;
+  flex-direction: row;
+  align-items: center;
+  padding: 0 10px;
+  background-color: #1a1a1a;
+  border-top: 1px solid #333;
+  
+  .quick-title {
+    color: #888;
+    font-size: 12px;
+    margin-right: 10px;
+  }
+  
+  .quick-btn {
+    padding: 3px 8px;
+    font-size: 12px;
+    color: #ffffff;
     background-color: #444;
-    border-radius: 4px;
+    border: none;
+    border-radius: 3px;
+    margin-right: 5px;
+    cursor: pointer;
+    
+    &:hover {
+      background-color: #555;
+    }
+    
+    &:disabled {
+      background-color: #333;
+      color: #666;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// 闪烁动画
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+// 滚动条样式
+.output-area {
+  overflow-y: auto;
+  
+  &::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: #0a0a0a;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 3px;
+    
+    &:hover {
+      background: #444;
+    }
+  }
 }

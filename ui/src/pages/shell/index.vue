@@ -1,29 +1,101 @@
 <template>
-    <div class="container">
-        <!-- 输出内容区 -->
-        <scroller class="output-area" scroll-direction="vertical" :show-scrollbar="true">
-            <text class="output-text">{{ output }}</text>
-        </scroller>
-
-        <!-- 输入控制区 -->
-        <div class="input-bar">
-            <text class="prompt">></text>
-            <div class="input-trigger" @click="openInput">
-                <text class="input-placeholder">{{ command || '点击输入命令...' }}</text>
-            </div>
-            <div class="btn-group">
-                <text class="btn run-btn" @click="runCommand">{{ busy ? '...' : '执行' }}</text>
-                <text class="btn clear-btn" @click="clearOutput">清屏</text>
-            </div>
-        </div>
+  <div class="container">
+    <!-- 终端输出区域 -->
+    <div 
+      class="output-area"
+      ref="outputRef"
+      @click="() => $refs.cmdInput?.focus()"
+    >
+      <div 
+        v-for="(item, index) in history"
+        :key="index"
+        :class="['output-line', getHistoryClass(item)]"
+      >
+        <span class="line-content">
+          {{ item.content }}
+        </span>
+      </div>
+      
+      <!-- 当前命令行提示 -->
+      <div class="command-prompt" v-if="!isExecuting">
+        <span class="prompt">{{ currentDir }} $</span>
+        <span class="cursor">█</span>
+      </div>
+      
+      <!-- 执行中提示 -->
+      <div class="executing-prompt" v-else>
+        <span class="loading">执行中...</span>
+        <span class="blinking-cursor">█</span>
+      </div>
     </div>
+
+    <!-- 输入区域 -->
+    <div class="input-bar">
+      <!-- 命令输入 -->
+      <input
+        ref="cmdInput"
+        v-model="inputCommand"
+        class="cmd-input"
+        type="text"
+        :placeholder="isExecuting ? '命令执行中...' : '输入命令，按回车执行'"
+        :disabled="isExecuting"
+        @keydown="handleKeyDown"
+        @focus="scrollToBottom"
+      />
+      
+      <!-- 按钮组 -->
+      <div class="btn-group">
+        <button 
+          class="btn run-btn" 
+          @click="executeCommand"
+          :disabled="isExecuting || !inputCommand.trim()"
+        >
+          {{ isExecuting ? '执行中' : '执行' }}
+        </button>
+        <button 
+          class="btn clear-btn" 
+          @click="clearTerminal"
+          :disabled="isExecuting"
+        >
+          清屏
+        </button>
+      </div>
+    </div>
+    
+    <!-- 快速命令按钮 -->
+    <div class="quick-commands">
+      <span class="quick-title">快速命令:</span>
+      <button 
+        v-for="cmd in quickCommands"
+        :key="cmd.label"
+        class="quick-btn"
+        @click="inputCommand = cmd.command; executeCommand()"
+        :disabled="isExecuting"
+      >
+        {{ cmd.label }}
+      </button>
+    </div>
+  </div>
 </template>
 
-<style lang="less" scoped>
-@import url('index.less');
-</style>
-
 <script>
-import index from './index';
-export default index;
+import { defineComponent } from 'vue';
+import terminalLogic from './index.ts';
+
+export default defineComponent({
+  ...terminalLogic,
+  data() {
+    return {
+      quickCommands: [
+        { label: 'ls', command: 'ls -la' },
+        { label: 'pwd', command: 'pwd' },
+        { label: 'date', command: 'date' },
+        { label: 'ps', command: 'ps aux' },
+        { label: 'clear', command: 'clear' }
+      ]
+    };
+  }
+});
 </script>
+
+<style scoped src="./index.less"></style>
