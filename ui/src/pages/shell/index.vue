@@ -21,57 +21,59 @@
   <div class="container">
     <!-- 终端输出区域 -->
     <scroller 
-      class="output-scroller"
+      class="terminal-scroller"
       ref="scroller"
       scroll-direction="vertical"
       :show-scrollbar="true"
     >
-      <div v-for="(item, index) in history" :key="index">
-        <text :class="['output-line', getHistoryClass(item)]">{{ item.content }}</text>
+      <div v-for="line in terminalLines" :key="line.id" class="terminal-line">
+        <text :class="['line-text', line.type]">{{ line.content }}</text>
       </div>
       
-      <!-- 当前命令行提示 -->
-      <div class="command-prompt" v-if="!isExecuting">
+      <!-- 命令提示符 -->
+      <div class="command-prompt">
         <text class="prompt">{{ currentDir }} $</text>
-        <text class="cursor">█</text>
-      </div>
-      
-      <!-- 执行中提示 -->
-      <div class="executing-prompt" v-else>
-        <text class="loading">执行中...</text>
-        <text class="blinking-cursor">█</text>
+        <text v-if="!isExecuting" class="cursor">█</text>
+        <text v-else class="loading">⌛</text>
       </div>
     </scroller>
 
     <!-- 输入区域 -->
-    <div class="input-bar">
+    <div class="input-section">
       <div class="input-container" @click="openKeyboard">
-        <text class="input-text">{{ inputCommand || '点击输入命令...' }}</text>
+        <text class="input-text">{{ inputText || '点击输入命令...' }}</text>
       </div>
       
-      <!-- 按钮组 -->
-      <div class="btn-group">
+      <div class="action-buttons">
         <text 
-          class="btn run-btn" 
+          class="btn btn-execute"
+          :class="{ 'btn-disabled': !canExecute }"
           @click="executeCommand"
-          :class="{ 'btn-disabled': isExecuting || !inputCommand.trim() }"
-        >{{ isExecuting ? '执行中' : '执行' }}</text>
+        >
+          {{ isExecuting ? '执行中...' : '执行' }}
+        </text>
         <text 
-          class="btn clear-btn" 
+          class="btn btn-clear"
           @click="clearTerminal"
-          :class="{ 'btn-disabled': isExecuting }"
-        >清屏</text>
+        >
+          清屏
+        </text>
       </div>
     </div>
-    
-    <!-- 快速命令按钮 -->
-    <div class="quick-commands" v-if="!isExecuting">
-      <text class="quick-title">快速命令:</text>
-      <div v-for="cmd in quickCommands" :key="cmd.label">
-        <text 
-          class="quick-btn"
+
+    <!-- 快速命令 -->
+    <div class="quick-commands-section">
+      <text class="section-title">快速命令</text>
+      <div class="quick-commands-grid">
+        <div 
+          v-for="cmd in quickCommands"
+          :key="cmd.label"
+          class="quick-command"
           @click="executeQuickCommand(cmd.command)"
-        >{{ cmd.label }}</text>
+        >
+          <text class="quick-label">{{ cmd.label }}</text>
+          <text class="quick-desc">{{ cmd.description }}</text>
+        </div>
       </div>
     </div>
   </div>
@@ -83,11 +85,5 @@
 
 <script>
 import shell from './index';
-import ToastMessage from '../../components/ToastMessage.vue';
-export default {
-  ...shell,
-  components: {
-    ToastMessage
-  }
-}
+export default shell;
 </script>
