@@ -23,7 +23,7 @@
     <div class="terminal-content">
       <scroller 
         class="terminal-scroller"
-        ref="scroller"
+        ref="terminalScroller"
         scroll-direction="vertical"
         :show-scrollbar="true"
       >
@@ -42,7 +42,7 @@
 
     <!-- 快速命令区域 -->
     <div class="quick-commands-section">
-      <text class="section-title">快速命令</text>
+      <text class="section-title">快速命令 (左右滑动查看更多)</text>
       <scroller 
         class="quick-commands-container"
         scroll-direction="horizontal"
@@ -50,7 +50,7 @@
       >
         <div 
           v-for="cmd in quickCommands"
-          :key="cmd.label"
+          :key="cmd.id"
           class="quick-command"
           @click="executeQuickCommand(cmd.command)"
         >
@@ -63,7 +63,7 @@
     <!-- 输入区域 -->
     <div class="input-section">
       <div class="input-container" @click="openKeyboard">
-        <text class="input-text">{{ inputText || '点击输入命令...' }}</text>
+        <text class="input-text">{{ inputText || '点击这里输入命令...' }}</text>
       </div>
       
       <div class="action-buttons">
