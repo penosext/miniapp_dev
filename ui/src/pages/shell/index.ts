@@ -1,7 +1,6 @@
 import { defineComponent } from 'vue';
 import { Shell } from 'langningchen';
-// 【关键修复】从 utils 目录导入真正的工具函数
-import { openSoftKeyboard } from '../../utils/softKeyboardUtils'; 
+import { openSoftKeyboard } from '../../utils/softKeyboardUtils'; // 确保路径正确
 
 export default defineComponent({
     data() {
@@ -12,47 +11,20 @@ export default defineComponent({
             busy: false,
         };
     },
-
     mounted() {
+        // 1. 初始化 Shell
         this.shell.initialize();
     },
-
     methods: {
+        // 唤起键盘
         openInput() {
             if (this.busy) return;
             
-            // 使用源码中定义的 openSoftKeyboard
             openSoftKeyboard(
-                () => this.command, // 获取当前值
-                (value: string) => { // 设置新值
+                () => this.command, 
+                (value: string) => {
+                    // 【关键点】当键盘点击确认时，会执行这个回调
                     this.command = value;
-                    this.$forceUpdate();
-                }
-            );
-        },
-
-        async runCommand() {
-            if (!this.command || this.busy) return;
-
-            const cmd = this.command;
-            this.command = ""; 
-            this.busy = true;
-
-            this.output += `\n$ ${cmd}\n`;
-
-            try {
-                // 调用 Shell API
-                const res = await this.shell.exec(cmd);
-                this.output += (res || "(no output)") + "\n";
-            } catch (e: any) {
-                this.output += `ERROR: ${String(e)}\n`;
-            } finally {
-                this.busy = false;
-            }
-        },
-
-        clearOutput() {
-            this.output = "--- Shell Cleared ---\n";
-        }
-    }
-});
+                    this.$forceUpdate(); // 强制刷新视图，确保文本显示出来
+                    
+                    // 可选：如果你希望点击键盘
