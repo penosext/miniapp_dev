@@ -22,45 +22,29 @@ export default defineComponent({
     data() {
         return {
             $page: {} as FalconPage<any>,
-            shell: Shell,
+            shell: null as any,
 
-            file1: "",
-            file2: "",
-            file3: "",
+            // ✅ 必须提前声明
+            output: "",        // shell 输出
+            error: "",         // 错误信息
         };
     },
 
     mounted() {
+        this.shell = Shell;
         this.shell.initialize();
     },
 
     methods: {
         async shelldebug() {
             try {
-                // 文件 1：文本
-                await this.shell.exec("mkdir -p /userdisk/111");
-                await this.shell.exec("echo helloworld > /userdisk/111/111.txt");
-                this.file1 = await this.shell.exec(
-                    "cat /userdisk/111/111.txt"
-                );
+                this.error = "";
+                this.output = "执行中...\n";
 
-                // 文件 2：下载并展示信息
-                await this.shell.exec(
-                    "curl -k -s https://ghproxy.net/https://github.com/penosext/miniapp/releases/download/release/8001749644971193.0_0_1.amr -o /userdisk/pentools.amr"
-                );
-                this.file2 = await this.shell.exec(
-                    "ls -lh /userdisk/pentools.amr"
-                );
-
-                // 文件 3：系统信息示例
-                this.file3 = await this.shell.exec(
-                    "df -h /userdisk"
-                );
-
-                $falcon.toast("执行完成");
-            } catch (e) {
-                console.error(e);
-                $falcon.toast("执行失败");
+                const out = await this.shell.exec("echo HELLO_FROM_SHELL");
+                this.output += out;
+            } catch (e: any) {
+                this.error = String(e);
             }
         }
     }
