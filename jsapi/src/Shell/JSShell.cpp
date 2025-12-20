@@ -28,8 +28,8 @@ void JSShell::exec(JQAsyncInfo& info)
         std::lock_guard<std::mutex> lock(mutex);
         auto [output, code] = shell->exec(cmd);
 
-        // 使用 tplEnv 创建 JS 对象
-        auto resultObj = JQValue::NewObject(info.tplEnv);
+        // 用 tplEnv 构造对象，不使用 NewObject 或 New
+        JQValue resultObj(info.tplEnv);
         resultObj.Set("stdout", output);
         resultObj.Set("code", code);
 
