@@ -1,6 +1,26 @@
-import { reactive, toRefs, onMounted, ref } from 'vue';
-import { showToast } from '@didi/mini-apps-common';
-import { Shell } from 'langningchen';
+// Copyright (C) 2025 Langning Chen
+// 
+// This file is part of miniapp.
+// 
+// miniapp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// miniapp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
+
+import { defineComponent } from 'vue';
+import { showError, showSuccess } from '../../components/ToastMessage';
+import { hideLoading, showLoading } from '../../components/Loading';
+import { openSoftKeyboard } from '../../utils/softKeyboardUtils';
+
+export type shellOptions = {};
 
 // 导入 Shell JS API 模块
 const ShellModule = require('shell');
@@ -11,17 +31,10 @@ interface TerminalHistory {
   timestamp: number;
 }
 
-interface TerminalState {
-  inputCommand: string;
-  history: TerminalHistory[];
-  isExecuting: boolean;
-  shellModule: any;
-  currentDir: string;
-}
-
-export default {
-  setup() {
-    const state = reactive<TerminalState>({
+const shell = defineComponent({
+  data() {
+    return {
+      $page: {} as FalconPage<shellOptions>,
       inputCommand: '',
       history: [
         {
@@ -34,172 +47,158 @@ export default {
           content: '提示：按↑↓键可以浏览历史命令',
           timestamp: Date.now()
         }
-      ],
+      ] as TerminalHistory[],
       isExecuting: false,
-      shellModule: null,
-      currentDir: '~'
-    });
-
-    // 创建 DOM 引用
-    const outputRef = ref<HTMLElement | null>(null);
-    const cmdInput = ref<HTMLInputElement | null>(null);
-
-    // 命令历史记录（用于↑↓键浏览）
-    const commandHistory: string[] = [];
-    let historyIndex = -1;
-
-    // 聚焦到输入框
-    const focusInput = () => {
-      if (cmdInput.value) {
-        cmdInput.value.focus();
-      }
+      shellModule: null as any,
+      currentDir: '~',
+      commandHistory: [] as string[],
+      historyIndex: -1,
+      
+      // 快速命令
+      quickCommands: [
+        { label: 'ls', command: 'ls -la' },
+        { label: 'pwd', command: 'pwd' },
+        { label: 'date', command: 'date' },
+        { label: 'ps', command: 'ps aux' },
+        { label: '网络', command: 'ping -c 3 8.8.8.8' },
+        { label: '磁盘', command: 'df -h' },
+        { label: '内存', command: 'free -m' },
+        { label: '系统', command: 'uname -a' },
+        { label: '清屏', command: 'clear' }
+      ]
     };
+  },
 
+  mounted() {
+    this.initShell();
+  },
+
+  methods: {
     // 初始化 Shell
-    const initShell = async () => {
+    async initShell() {
       try {
-        state.shellModule = ShellModule;
-        await state.shellModule.initialize();
-        state.history.push({
-          type: 'output',
-          content: '✓ Shell 初始化成功\n',
-          timestamp: Date.now()
-        });
+        this.shellModule = ShellModule;
+        await this.shellModule.initialize();
+        this.addOutput('✓ Shell 初始化成功\n');
       } catch (error: any) {
-        state.history.push({
-          type: 'error',
-          content: `✗ Shell 初始化失败: ${error.message || '未知错误'}\n`,
-          timestamp: Date.now()
-        });
+        this.addError(`✗ Shell 初始化失败: ${error.message || '未知错误'}\n`);
       }
-    };
+    },
+
+    // 添加输出
+    addOutput(content: string) {
+      this.history.push({
+        type: 'output',
+        content,
+        timestamp: Date.now()
+      });
+      this.scrollToBottom();
+    },
+
+    // 添加错误
+    addError(content: string) {
+      this.history.push({
+        type: 'error',
+        content,
+        timestamp: Date.now()
+      });
+      this.scrollToBottom();
+    },
 
     // 执行命令
-    const executeCommand = async () => {
-      if (!state.inputCommand.trim() || state.isExecuting) return;
+    async executeCommand() {
+      if (!this.inputCommand.trim() || this.isExecuting) return;
 
-      const command = state.inputCommand.trim();
+      const command = this.inputCommand.trim();
       
       // 记录命令
-      state.history.push({
+      this.history.push({
         type: 'command',
-        content: `${state.currentDir} $ ${command}`,
+        content: `${this.currentDir} $ ${command}`,
         timestamp: Date.now()
       });
 
       // 添加到命令历史
-      if (commandHistory[commandHistory.length - 1] !== command) {
-        commandHistory.push(command);
+      if (this.commandHistory[this.commandHistory.length - 1] !== command) {
+        this.commandHistory.push(command);
       }
-      historyIndex = commandHistory.length;
-      state.inputCommand = '';
+      this.historyIndex = this.commandHistory.length;
+      this.inputCommand = '';
 
       // 处理特殊命令
-      if (await handleBuiltinCommands(command)) {
-        scrollToBottom();
+      if (await this.handleBuiltinCommands(command)) {
+        this.scrollToBottom();
         return;
       }
 
       // 执行系统命令
-      state.isExecuting = true;
+      this.isExecuting = true;
       try {
-        if (!state.shellModule) {
+        if (!this.shellModule) {
           throw new Error('Shell 模块未初始化');
         }
 
-        const result = await state.shellModule.exec(command);
+        const result = await this.shellModule.exec(command);
         
-        state.history.push({
-          type: 'output',
-          content: result || '(无输出)\n',
-          timestamp: Date.now()
-        });
+        this.addOutput(result || '(无输出)\n');
         
       } catch (error: any) {
-        state.history.push({
-          type: 'error',
-          content: `错误: ${error.message || '命令执行失败'}\n`,
-          timestamp: Date.now()
-        });
+        this.addError(`错误: ${error.message || '命令执行失败'}\n`);
       } finally {
-        state.isExecuting = false;
-        scrollToBottom();
-        focusInput(); // 执行完成后重新聚焦
+        this.isExecuting = false;
+        this.scrollToBottom();
       }
-    };
+    },
 
     // 处理内置命令
-    const handleBuiltinCommands = async (command: string): Promise<boolean> => {
+    async handleBuiltinCommands(command: string): Promise<boolean> {
       const [cmd, ...args] = command.split(' ');
       
       switch (cmd.toLowerCase()) {
         case 'help':
-          showHelp();
+          this.showHelp();
           return true;
           
         case 'clear':
-          clearTerminal();
+          this.clearTerminal();
           return true;
           
         case 'echo':
-          state.history.push({
-            type: 'output',
-            content: args.join(' ') + '\n',
-            timestamp: Date.now()
-          });
+          this.addOutput(args.join(' ') + '\n');
           return true;
           
         case 'pwd':
-          state.history.push({
-            type: 'output',
-            content: state.currentDir + '\n',
-            timestamp: Date.now()
-          });
+          this.addOutput(this.currentDir + '\n');
           return true;
           
         case 'cd':
           if (args[0] === '~') {
-            state.currentDir = '~';
+            this.currentDir = '~';
           } else if (args[0]) {
-            state.currentDir = args[0];
+            this.currentDir = args[0];
           }
-          state.history.push({
-            type: 'output',
-            content: `当前目录: ${state.currentDir}\n`,
-            timestamp: Date.now()
-          });
+          this.addOutput(`当前目录: ${this.currentDir}\n`);
           return true;
           
         case 'history':
-          state.history.push({
-            type: 'output',
-            content: commandHistory.map((cmd, idx) => `${idx + 1}. ${cmd}`).join('\n') + '\n',
-            timestamp: Date.now()
-          });
+          this.addOutput(this.commandHistory.map((cmd, idx) => `${idx + 1}. ${cmd}`).join('\n') + '\n');
           return true;
           
         case 'date':
-          state.history.push({
-            type: 'output',
-            content: new Date().toString() + '\n',
-            timestamp: Date.now()
-          });
+          this.addOutput(new Date().toString() + '\n');
           return true;
           
         case 'exit':
-          // 如果是小程序环境，可以返回上一页
-          if (typeof wx !== 'undefined' && wx.navigateBack) {
-            wx.navigateBack();
-          }
+          this.$page.finish();
           return true;
           
         default:
           return false;
       }
-    };
+    },
 
     // 显示帮助
-    const showHelp = () => {
+    showHelp() {
       const helpText = `
 可用命令：
   help              - 显示此帮助信息
@@ -223,84 +222,88 @@ export default {
   uname -a          - 查看系统信息
   ping -c 3 8.8.8.8 - 测试网络
 `;
-      state.history.push({
-        type: 'output',
-        content: helpText,
-        timestamp: Date.now()
-      });
-    };
+      this.addOutput(helpText);
+    },
 
     // 清屏
-    const clearTerminal = () => {
-      state.history = [];
-      focusInput(); // 清屏后重新聚焦
-    };
+    clearTerminal() {
+      this.history = [];
+      this.commandHistory = [];
+      this.historyIndex = -1;
+    },
 
     // 滚动到底部
-    const scrollToBottom = () => {
-      setTimeout(() => {
-        if (outputRef.value) {
-          outputRef.value.scrollTop = outputRef.value.scrollHeight;
+    scrollToBottom() {
+      this.$nextTick(() => {
+        const scroller = this.$refs.scroller as any;
+        if (scroller && scroller.scrollTo) {
+          scroller.scrollTo({
+            x: 0,
+            y: 99999,
+            animated: true
+          });
         }
-      }, 50);
-    };
+      });
+    },
 
     // 键盘事件处理
-    const handleKeyDown = (e: KeyboardEvent) => {
+    handleKeyDown(e: KeyboardEvent) {
       switch (e.key) {
         case 'Enter':
           e.preventDefault();
-          executeCommand();
+          this.executeCommand();
           break;
           
         case 'ArrowUp':
           e.preventDefault();
-          if (commandHistory.length > 0) {
-            if (historyIndex > 0) historyIndex--;
-            if (historyIndex >= 0) {
-              state.inputCommand = commandHistory[historyIndex];
+          if (this.commandHistory.length > 0) {
+            if (this.historyIndex > 0) this.historyIndex--;
+            if (this.historyIndex >= 0) {
+              this.inputCommand = this.commandHistory[this.historyIndex];
             }
           }
           break;
           
         case 'ArrowDown':
           e.preventDefault();
-          if (historyIndex < commandHistory.length - 1) {
-            historyIndex++;
-            state.inputCommand = commandHistory[historyIndex];
-          } else if (historyIndex === commandHistory.length - 1) {
-            historyIndex++;
-            state.inputCommand = '';
+          if (this.historyIndex < this.commandHistory.length - 1) {
+            this.historyIndex++;
+            this.inputCommand = this.commandHistory[this.historyIndex];
+          } else if (this.historyIndex === this.commandHistory.length - 1) {
+            this.historyIndex++;
+            this.inputCommand = '';
           }
           break;
       }
-    };
+    },
+
+    // 执行快速命令
+    executeQuickCommand(command: string) {
+      this.inputCommand = command;
+      this.executeCommand();
+    },
 
     // 获取样式类
-    const getHistoryClass = (item: TerminalHistory) => {
+    getHistoryClass(item: TerminalHistory) {
       switch (item.type) {
         case 'command': return 'command-line';
         case 'output': return 'output-line';
         case 'error': return 'error-line';
         default: return '';
       }
-    };
+    },
 
-    onMounted(() => {
-      initShell();
-      focusInput();
-    });
-
-    return {
-      ...toRefs(state),
-      outputRef,
-      cmdInput,
-      executeCommand,
-      clearTerminal,
-      handleKeyDown,
-      getHistoryClass,
-      focusInput,
-      scrollToBottom
-    };
+    // 打开软键盘
+    openKeyboard() {
+      openSoftKeyboard(
+        () => this.inputCommand,
+        (value) => { 
+          this.inputCommand = value; 
+          this.$forceUpdate();
+        }
+      );
+    }
   }
-};
+});
+
+export default shell;
