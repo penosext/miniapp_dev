@@ -1,12 +1,11 @@
 import { defineComponent } from 'vue';
 import { Shell } from 'langningchen';
-// 【关键修复】从 utils 目录导入真正的工具函数
 import { openSoftKeyboard } from '../../utils/softKeyboardUtils'; 
 
 export default defineComponent({
     data() {
         return {
-            shell: new Shell() as any,
+            shell: Shell, // 直接使用已经实例化的Shell对象
             command: "",
             output: "--- Shell Ready ---\n",
             busy: false,
@@ -14,14 +13,17 @@ export default defineComponent({
     },
 
     mounted() {
-        this.shell.initialize();
+        setTimeout(() => {
+            this.shell.initialize();
+            console.log("Shell after initialization:", this.shell);
+            console.log("Shell exec method exists:", typeof this.shell.exec === "function");
+        }, 1000);
     },
 
     methods: {
         openInput() {
             if (this.busy) return;
             
-            // 使用源码中定义的 openSoftKeyboard
             openSoftKeyboard(
                 () => this.command, // 获取当前值
                 (value: string) => { // 设置新值
@@ -41,7 +43,6 @@ export default defineComponent({
             this.output += `\n$ ${cmd}\n`;
 
             try {
-                // 调用 Shell API
                 const res = await this.shell.exec(cmd);
                 this.output += (res || "(no output)") + "\n";
             } catch (e: any) {
