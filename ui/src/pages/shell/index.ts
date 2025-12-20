@@ -123,14 +123,17 @@ export default defineComponent({
       }
     },
     
-    // 添加终端行
+    // 添加终端行 - 修复：确保每行都有内容
     addTerminalLine(type: TerminalLine['type'], content: string) {
       const timestamp = Date.now();
+      
+      // 确保内容不为空
+      const displayContent = content || ' ';
       
       this.terminalLines.push({
         id: `line_${timestamp}_${Math.random().toString(36).substr(2, 9)}`,
         type,
-        content,
+        content: displayContent,
         timestamp
       });
       
@@ -244,6 +247,7 @@ export default defineComponent({
     // 执行真实命令
     async executeRealCommand(command: string) {
       this.isExecuting = true;
+      this.addTerminalLine('system', '执行中...');
       
       try {
         // 首先切换到当前目录，然后执行命令
@@ -395,44 +399,38 @@ export default defineComponent({
       return new Promise(resolve => setTimeout(resolve, ms));
     },
     
-    // 显示帮助
+    // 显示帮助 - 修复：简化并缩短宽度
     showHelp() {
-      const helpText = `
-╔═══════════════════════════════════════╗
-║            Shell终端帮助              ║
-╚═══════════════════════════════════════╝
+      const helpText = `Shell终端帮助
 
 【内置命令】
-  help      - 显示此帮助信息
-  clear     - 清空终端显示
-  history   - 显示命令历史
-  reset     - 重置终端
-  test      - 测试Shell功能
-  cd [目录] - 切换工作目录
+help      显示此帮助信息
+clear     清空终端显示
+history   显示命令历史
+reset     重置终端
+test      测试Shell功能
+cd [目录] 切换工作目录
 
 【文件操作】
-  ls -la              列出详细文件信息
-  mkdir [目录]        创建目录
-  rm [文件]           删除文件
-  cp [源] [目标]      复制文件
-  mv [源] [目标]      移动文件
-  cat [文件]          查看文件内容
+ls -la    列出详细文件信息
+mkdir     创建目录
+rm        删除文件
+cp        复制文件
+mv        移动文件
+cat       查看文件内容
 
 【系统信息】
-  ps aux              查看进程列表
-  df -h               磁盘使用情况
-  free -m             内存使用情况
-  uname -a            系统信息
-  date                日期时间
-  whoami              当前用户
+ps aux    查看进程列表
+df -h     磁盘使用情况
+free -m   内存使用情况
+uname -a  系统信息
+date      日期时间
+whoami    当前用户
 
 【网络工具】
-  ping [主机]         网络连通性测试
-  curl [URL]          下载文件
-  wget [URL]          下载文件
-
-【应用安装】
-  miniapp_cli install [amr文件]  安装应用
+ping      网络连通性测试
+curl      下载文件
+wget      下载文件
 
 【使用技巧】
 • 点击下方快速命令可快速执行
@@ -440,9 +438,13 @@ export default defineComponent({
 • 点击输入框可调出软键盘
 • cd命令切换目录后会影响后续命令
 
-状态: ${this.shellInitialized ? '✓ Shell已就绪' : '✗ Shell未初始化'}
-`;
-      this.addTerminalLine('info', helpText);
+状态: ${this.shellInitialized ? '✓ Shell已就绪' : '✗ Shell未初始化'}`;
+      
+      // 分割帮助文本，逐行显示
+      const lines = helpText.split('\n');
+      lines.forEach(line => {
+        this.addTerminalLine('info', line);
+      });
     },
     
     // 显示历史
