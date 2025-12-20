@@ -4,178 +4,249 @@
   top: 0px;
   width: 100%;
   height: 100%;
-  background-color: #000000;
+  background-color: #0a0a0a;
   display: flex;
   flex-direction: column;
 }
 
-/* 终端输出区域 - 占据大部分空间 */
+/* 终端输出区域 */
 .terminal-content {
   flex: 1;
   width: 100%;
-  background-color: #0c0c0c;
+  background-color: #000000;
 }
 
 .terminal-scroller {
   width: 100%;
   height: 100%;
-  padding-left: 10px;
-  padding-right: 10px;
-  padding-top: 10px;
-  padding-bottom: 5px;
+  padding-left: 12px;
+  padding-right: 12px;
+  padding-top: 12px;
+  padding-bottom: 8px;
 }
 
 .terminal-line {
   width: 100%;
-  margin-bottom: 2px;
+  margin-bottom: 3px;
 }
 
 .line-text {
-  font-size: 14px;
+  font-size: 13px;
   line-height: 18px;
-  font-family: 'Monaco', 'Consolas', monospace;
+  font-family: 'Monaco', 'Consolas', 'Menlo', monospace;
   word-break: break-word;
+  white-space: pre-wrap;
 }
 
+/* 不同类型文本的颜色 */
 .line-text.command {
-  color: #00ff00;
+  color: #00ff00;       /* 亮绿色 - 命令 */
   font-weight: bold;
+  text-shadow: 0 0 3px rgba(0, 255, 0, 0.3);
 }
 
 .line-text.output {
-  color: #cccccc;
+  color: #e0e0e0;       /* 亮灰色 - 输出 */
 }
 
 .line-text.error {
-  color: #ff5555;
+  color: #ff3333;       /* 亮红色 - 错误 */
+  font-weight: bold;
+  text-shadow: 0 0 3px rgba(255, 51, 51, 0.3);
+}
+
+.line-text.success {
+  color: #33ff33;       /* 亮绿色 - 成功 */
+  font-weight: bold;
+  text-shadow: 0 0 3px rgba(51, 255, 51, 0.3);
+}
+
+.line-text.warning {
+  color: #ffaa00;       /* 橙色 - 警告 */
+  text-shadow: 0 0 3px rgba(255, 170, 0, 0.3);
+}
+
+.line-text.info {
+  color: #33ccff;       /* 亮蓝色 - 信息 */
+}
+
+.line-text.system {
+  color: #aa66ff;       /* 紫色 - 系统消息 */
+  font-weight: bold;
 }
 
 .command-prompt {
   flex-direction: row;
   align-items: center;
-  margin-top: 5px;
-  margin-bottom: 5px;
+  margin-top: 6px;
+  margin-bottom: 6px;
+  padding: 2px 0;
 }
 
 .prompt {
   color: #00ff00;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: bold;
-  margin-right: 5px;
+  margin-right: 8px;
+  text-shadow: 0 0 4px rgba(0, 255, 0, 0.5);
 }
 
 .cursor {
   color: #00ff00;
   font-size: 14px;
+  font-weight: bold;
   animation-name: blink;
-  animation-duration: 1s;
+  animation-duration: 0.8s;
   animation-iteration-count: infinite;
 }
 
 .loading {
   color: #ffaa00;
-  font-size: 14px;
+  font-size: 13px;
+  margin-left: 8px;
 }
 
-/* 输入区域 - 固定在底部 */
+/* 输入区域 */
 .input-section {
-  height: 50px;
+  height: 48px;
   flex-direction: row;
   align-items: center;
-  padding-left: 10px;
-  padding-right: 10px;
+  padding-left: 12px;
+  padding-right: 12px;
   background-color: #1a1a1a;
   border-top-width: 1px;
   border-top-style: solid;
   border-top-color: #333333;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.5);
 }
 
 .input-container {
   flex: 1;
-  height: 36px;
-  background-color: #000000;
-  padding-left: 10px;
-  padding-right: 10px;
-  border-radius: 4px;
+  height: 34px;
+  background-color: #111111;
+  padding-left: 12px;
+  padding-right: 12px;
+  border-radius: 6px;
   justify-content: center;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #444444;
+}
+
+.input-container:active {
+  border-color: #00ff00;
+  background-color: #0a0a0a;
 }
 
 .input-text {
   font-size: 14px;
   color: #ffffff;
-  line-height: 36px;
+  line-height: 34px;
+  font-family: 'Monaco', 'Consolas', monospace;
 }
 
-/* 操作按钮 - 紧凑布局 */
+/* 操作按钮 */
 .action-buttons {
   flex-direction: row;
-  margin-left: 8px;
+  margin-left: 10px;
 }
 
 .btn {
-  min-width: 60px;
-  height: 36px;
-  padding-left: 12px;
-  padding-right: 12px;
-  font-size: 14px;
+  min-width: 58px;
+  height: 34px;
+  padding-left: 14px;
+  padding-right: 14px;
+  font-size: 13px;
   color: #ffffff;
   text-align: center;
-  line-height: 36px;
-  border-radius: 4px;
-  margin-left: 4px;
+  line-height: 34px;
+  border-radius: 6px;
+  margin-left: 6px;
+  font-weight: bold;
+  border-width: 1px;
+  border-style: solid;
+  border-color: transparent;
+  transition: all 0.2s;
 }
 
 .btn-execute {
-  background-color: #007bff;
+  background-color: #0066cc;
+  border-color: #0088ff;
+}
+
+.btn-execute:active {
+  background-color: #0088ff;
+  box-shadow: 0 0 8px rgba(0, 136, 255, 0.5);
 }
 
 .btn-clear {
   background-color: #444444;
+  border-color: #666666;
+}
+
+.btn-clear:active {
+  background-color: #666666;
+  border-color: #888888;
 }
 
 .btn-disabled {
-  background-color: #333333;
+  background-color: #2a2a2a;
   color: #666666;
+  border-color: #333333;
 }
 
-/* 快速命令区域 - 放在输入区域上方 */
+/* 快速命令区域 */
 .quick-commands-section {
-  height: 70px;
-  background-color: #1a1a1a;
+  height: 75px;
+  background-color: #151515;
   border-top-width: 1px;
   border-top-style: solid;
-  border-top-color: #333333;
-  padding-top: 5px;
-  padding-bottom: 5px;
+  border-top-color: #222222;
+  border-bottom-width: 1px;
+  border-bottom-style: solid;
+  border-bottom-color: #222222;
+  padding-top: 6px;
+  padding-bottom: 6px;
 }
 
 .section-title {
-  font-size: 12px;
+  font-size: 11px;
   color: #888888;
-  margin-left: 10px;
-  margin-bottom: 5px;
-  height: 15px;
-  line-height: 15px;
+  margin-left: 12px;
+  margin-bottom: 6px;
+  height: 14px;
+  line-height: 14px;
+  font-family: 'Monaco', 'Consolas', monospace;
 }
 
 .quick-commands-container {
   flex-direction: row;
-  flex-wrap: wrap;
-  padding-left: 5px;
-  padding-right: 5px;
-  height: 45px;
-  overflow: hidden;
+  flex-wrap: nowrap;
+  padding-left: 8px;
+  padding-right: 8px;
+  height: 46px;
+  overflow-x: scroll;
 }
 
 .quick-command {
-  padding-left: 8px;
-  padding-right: 8px;
-  padding-top: 3px;
-  padding-bottom: 3px;
-  background-color: #2a2a2a;
-  border-radius: 4px;
-  margin-right: 5px;
-  margin-bottom: 3px;
+  flex-shrink: 0;
+  padding-left: 10px;
+  padding-right: 10px;
+  padding-top: 6px;
+  padding-bottom: 4px;
+  background-color: #252525;
+  border-radius: 6px;
+  margin-right: 8px;
+  border-width: 1px;
+  border-style: solid;
+  border-color: #333333;
+  min-width: 70px;
+}
+
+.quick-command:active {
+  background-color: #333333;
+  border-color: #00ff00;
+  transform: translateY(1px);
 }
 
 .quick-label {
@@ -185,18 +256,39 @@
   height: 18px;
   line-height: 18px;
   text-align: center;
+  font-family: 'Monaco', 'Consolas', monospace;
 }
 
 .quick-desc {
   font-size: 10px;
-  color: #888888;
-  height: 12px;
-  line-height: 12px;
+  color: #aaaaaa;
+  height: 14px;
+  line-height: 14px;
   text-align: center;
+  font-family: 'Monaco', 'Consolas', monospace;
+}
+
+/* 滚动条样式 */
+.quick-commands-container::-webkit-scrollbar {
+  height: 4px;
+}
+
+.quick-commands-container::-webkit-scrollbar-track {
+  background: #0a0a0a;
+  border-radius: 2px;
+}
+
+.quick-commands-container::-webkit-scrollbar-thumb {
+  background: #444444;
+  border-radius: 2px;
+}
+
+.quick-commands-container::-webkit-scrollbar-thumb:hover {
+  background: #555555;
 }
 
 @keyframes blink {
   0% { opacity: 1; }
-  50% { opacity: 0; }
+  50% { opacity: 0.3; }
   100% { opacity: 1; }
 }
