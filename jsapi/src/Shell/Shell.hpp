@@ -7,8 +7,6 @@
 #include <atomic>
 #include <vector>
 #include <map>
-#include <queue>
-#include <condition_variable>
 
 class Shell {
 public:
@@ -97,11 +95,6 @@ public:
     // 流式执行（逐行输出）
     void execStream(const std::string& cmd,
                     std::function<void(const std::string&, bool)> onOutput);
-    
-    // 特殊命令支持
-    bool isInteractiveProgram(const std::string& program);
-    CommandResult execInteractiveProgram(const std::string& program, 
-                                         const std::vector<std::string>& args);
     
 private:
     class Impl;
