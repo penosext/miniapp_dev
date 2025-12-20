@@ -23,6 +23,7 @@
             <text class="section-title">可用功能</text>
             
             <div class="item"><text class="item-text" @click="openAi">AI 助手</text></div>
+            <div class="item"><text class="item-text" @click="PenTerm">PenTerm</text></div>
             <div class="item"><text class="item-text" @click="shelldebug">更新软件</text></div>            
         </div>
     </scroller>
