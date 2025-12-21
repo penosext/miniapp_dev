@@ -52,6 +52,7 @@
     height: 100%;
     background-color: #1a1a1a;
     border-right: 1px solid #333333;
+    flex-shrink: 0;
 }
 
 .line-numbers-container {
@@ -88,6 +89,7 @@
     border: none;
     outline: none;
     white-space: pre;
+    word-break: break-all;
 }
 
 .editor-status {
@@ -127,12 +129,13 @@
     padding: 0 10px;
     background-color: #222222;
     border-top: 1px solid #333333;
-    gap: 5px;
+    gap: 8px;
     flex-shrink: 0;
+    justify-content: space-between;
 }
 
 .toolbar-btn {
-    min-width: 40px;
+    min-width: 50px;
     height: 30px;
     font-size: 12px;
     line-height: 30px;
@@ -141,6 +144,7 @@
     padding: 0 8px;
     background-color: #333333;
     color: #ffffff;
+    flex-shrink: 0;
 }
 
 .toolbar-btn-primary {
@@ -227,4 +231,16 @@
     flex-direction: row;
     justify-content: center;
     gap: 15px;
+}
+
+/* 新增：工具栏按钮组，使按钮间距更紧凑 */
+.toolbar-left {
+    flex-direction: row;
+    gap: 8px;
+    flex: 1;
+}
+
+.toolbar-right {
+    flex-direction: row;
+    gap: 8px;
 }

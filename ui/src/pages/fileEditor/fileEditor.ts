@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Langning Chen
+// Copyright (C) 2025 wyxdlz54188
 // 
 // This file is part of miniapp.
 // 
@@ -449,23 +449,15 @@ const fileEditor = defineComponent({
       );
     },
     
-    // 清空内容
-    clearContent() {
-      this.showConfirm('确定要清空所有内容吗？', 'clear');
-    },
-    
+    // 删除清空功能，不再需要clearContent方法
+    // 删除确认操作中的clear分支
     // 执行确认操作
     executeConfirmAction(action: string) {
       this.showConfirmModal = false;
       
       switch (action) {
-        case 'clear':
-          this.fileContent = '';
-          this.isModified = this.fileContent !== this.originalContent;
-          this.updateStats();
-          break;
         case 'exit':
-          this.exitEditor();
+          this.quickExit();
           break;
         case 'save_and_exit':
           this.saveAndExit();
@@ -476,28 +468,26 @@ const fileEditor = defineComponent({
     // 保存并退出
     async saveAndExit() {
       await this.saveFile();
-      this.exitEditor();
+      this.quickExit();
     },
     
-    // 显示确认对话框
+    // 显示确认对话框 - 简化，只用于保存并退出
     showConfirm(message: string, action: string) {
       this.confirmTitle = message;
       this.confirmAction = action;
       this.showConfirmModal = true;
     },
     
-    // 退出编辑器
+    // 退出编辑器 - 修改：直接退出，不提示保存
     exitEditor() {
-      if (this.isModified) {
-        this.showConfirm('文件已修改，确定要退出吗？', 'exit');
-        return;
-      }
-      
+      // 直接退出，不保存修改
+      this.quickExit();
+    },
+    
+    // 快速退出（不保存） - 这是主要退出方式
+    quickExit() {
       // 如果是从文件管理器跳转过来的，返回时刷新
       if (this.returnTo === 'fileManager') {
-        $falcon.trigger('file_saved', this.filePath);
-        
-        // 返回文件管理器并传递当前路径
         $falcon.navTo('fileManager', { 
           refresh: true,
           path: this.returnPath 
@@ -507,23 +497,7 @@ const fileEditor = defineComponent({
       }
     },
     
-    // 快速退出（不保存）
-    quickExit() {
-      if (this.isModified) {
-        showWarning('文件已修改，未保存');
-      }
-      
-      if (this.returnTo === 'fileManager') {
-        $falcon.navTo('fileManager', { 
-          refresh: true,
-          path: this.returnPath 
-        });
-      } else {
-        this.$page.finish();
-      }
-    },
-    
-    // 处理返回键
+    // 处理返回键 - 修改：直接退出，不提示保存
     handleBackPress() {
       if (this.showSaveAsModal || this.showFindModal || this.showGoToModal || this.showConfirmModal) {
         this.showSaveAsModal = false;
@@ -533,7 +507,8 @@ const fileEditor = defineComponent({
         return;
       }
       
-      this.exitEditor();
+      // 直接退出，不提示保存
+      this.quickExit();
     },
     
     // 获取文件信息
