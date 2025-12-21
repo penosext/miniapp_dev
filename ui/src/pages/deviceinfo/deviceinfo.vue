@@ -3,11 +3,6 @@
  
  This file is part of miniapp.
  
- miniapp is free software: you can redistribute it and/or modify
- it under the terms of the GNU General Public License as published by
- the Free Software Foundation, either version 3 of the License, or
- (at your option) any later version.
- 
  miniapp is distributed in the hope that it will be useful,
  but WITHOUT ANY WARRANTY; without even the implied warranty of
  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -21,7 +16,7 @@
   <div class="container">
     <!-- 标题栏 -->
     <div class="header">
-      <text class="title">📱 设备信息查看器</text>
+      <text class="title">设备信息</text>
       <div 
         class="refresh-btn" 
         @click="refreshInfo"
@@ -47,7 +42,7 @@
         
         <!-- 错误信息 -->
         <div v-else-if="deviceInfo.error" class="info-section">
-          <text class="section-title">❌ 错误信息</text>
+          <text class="section-title">错误信息</text>
           <div class="info-item">
             <text class="item-value error-value">{{ deviceInfo.error }}</text>
           </div>
@@ -57,16 +52,16 @@
         <div v-else>
           <!-- IP地址信息 -->
           <div class="info-section">
-            <text class="section-title">🌐 IP地址信息</text>
+            <text class="section-title">IP地址信息</text>
             <div class="info-item">
               <text class="item-label">IP地址:</text>
-              <text class="item-value">{{ formatIP(deviceInfo.ipAddress || '') }}</text>
+              <text class="item-value">{{ formatIP(deviceInfo.ipAddress) }}</text>
             </div>
           </div>
           
           <!-- 设备标识 -->
           <div class="info-section">
-            <text class="section-title">🆔 设备标识</text>
+            <text class="section-title">设备标识</text>
             <div class="info-item">
               <text class="item-label">设备ID:</text>
               <text class="item-value">{{ deviceInfo.deviceId || '未知' }}</text>
@@ -75,61 +70,56 @@
           
           <!-- 系统信息 -->
           <div class="info-section">
-            <text class="section-title">💻 系统信息</text>
+            <text class="section-title">系统信息</text>
             <div class="info-item">
               <text class="item-label">设备型号:</text>
-              <text class="item-value">{{ deviceInfo.systemInfo?.model || '未知' }}</text>
+              <text class="item-value">{{ deviceInfo.systemInfo && deviceInfo.systemInfo.model ? deviceInfo.systemInfo.model : '未知' }}</text>
             </div>
             <div class="info-item">
               <text class="item-label">内核版本:</text>
-              <text class="item-value">{{ deviceInfo.systemInfo?.kernel || '未知' }}</text>
+              <text class="item-value">{{ deviceInfo.systemInfo && deviceInfo.systemInfo.kernel ? deviceInfo.systemInfo.kernel : '未知' }}</text>
             </div>
             <div class="info-item">
               <text class="item-label">系统版本:</text>
-              <text class="item-value">{{ deviceInfo.systemInfo?.version || '未知' }}</text>
+              <text class="item-value">{{ deviceInfo.systemInfo && deviceInfo.systemInfo.version ? deviceInfo.systemInfo.version : '未知' }}</text>
             </div>
           </div>
           
           <!-- 存储信息 -->
           <div class="info-section">
-            <text class="section-title">💾 存储信息</text>
+            <text class="section-title">存储信息</text>
             <div class="info-item">
               <text class="item-label">总空间:</text>
-              <text class="item-value">{{ deviceInfo.storageInfo?.total || '未知' }}</text>
+              <text class="item-value">{{ deviceInfo.storageInfo && deviceInfo.storageInfo.total ? deviceInfo.storageInfo.total : '未知' }}</text>
             </div>
             <div class="info-item">
               <text class="item-label">已使用:</text>
-              <text class="item-value">{{ deviceInfo.storageInfo?.used || '未知' }}</text>
+              <text class="item-value">{{ deviceInfo.storageInfo && deviceInfo.storageInfo.used ? deviceInfo.storageInfo.used : '未知' }}</text>
             </div>
             <div class="info-item">
               <text class="item-label">可用空间:</text>
-              <text class="item-value">{{ deviceInfo.storageInfo?.free || '未知' }}</text>
+              <text class="item-value">{{ deviceInfo.storageInfo && deviceInfo.storageInfo.free ? deviceInfo.storageInfo.free : '未知' }}</text>
             </div>
           </div>
           
           <!-- 网络接口详情 -->
-          <div class="info-section" v-if="deviceInfo.networkInfo?.interfaces && deviceInfo.networkInfo.interfaces !== '获取失败'">
-            <text class="section-title">📡 网络接口详情</text>
+          <div class="info-section" v-if="deviceInfo.networkInfo && deviceInfo.networkInfo.interfaces && deviceInfo.networkInfo.interfaces !== '获取失败'">
+            <text class="section-title">网络接口详情</text>
             <div class="info-item">
-              <text class="item-value">{{ deviceInfo.networkInfo?.interfaces || '无网络接口信息' }}</text>
+              <text class="item-value">{{ deviceInfo.networkInfo.interfaces || '无网络接口信息' }}</text>
             </div>
           </div>
           
           <!-- 时间戳 -->
           <div class="info-section">
-            <text class="section-title">🕐 信息更新时间</text>
+            <text class="section-title">信息更新时间</text>
             <div class="info-item">
               <text class="item-label">最后更新:</text>
-              <text class="item-value">{{ new Date(deviceInfo.timestamp || Date.now()).toLocaleString() }}</text>
+              <text class="item-value">{{ deviceInfo.timestamp ? new Date(deviceInfo.timestamp).toLocaleString() : new Date().toLocaleString() }}</text>
             </div>
           </div>
         </div>
       </scroller>
-    </div>
-
-    <!-- 底部信息 -->
-    <div class="footer">
-      <text class="copyright">© 2025 设备信息查看器 - 基于 langningchen.Shell</text>
     </div>
   </div>
 </template>

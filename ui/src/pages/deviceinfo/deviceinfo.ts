@@ -198,11 +198,21 @@ export default defineComponent({
         // 5. 获取存储信息
         try {
           const storageResult = await Shell.exec('df -h /');
-          this.deviceInfo.storageInfo = {
-            total: storageResult.split('\n')[1]?.split(/\s+/)[1] || '未知',
-            used: storageResult.split('\n')[1]?.split(/\s+/)[2] || '未知',
-            free: storageResult.split('\n')[1]?.split(/\s+/)[3] || '未知'
-          };
+          const storageLines = storageResult.split('\n');
+          if (storageLines.length > 1) {
+            const storageParts = storageLines[1].split(/\s+/);
+            this.deviceInfo.storageInfo = {
+              total: storageParts[1] || '未知',
+              used: storageParts[2] || '未知',
+              free: storageParts[3] || '未知'
+            };
+          } else {
+            this.deviceInfo.storageInfo = {
+              total: '未知',
+              used: '未知',
+              free: '未知'
+            };
+          }
         } catch (storageError: any) {
           console.warn('获取存储信息失败:', storageError);
           this.deviceInfo.storageInfo = {
@@ -236,7 +246,7 @@ export default defineComponent({
     },
     
     // 格式化IP地址显示
-    formatIP(ip: string): string {
+    formatIP(ip: string | undefined): string {
       if (!ip) return '未获取到';
       
       // 如果IP是错误信息，直接返回
