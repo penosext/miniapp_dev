@@ -8,7 +8,8 @@
     "aiHistory": "pages/aiHistory/aiHistory.vue",
     "aiNav": "pages/aiNav/aiNav.vue",
     "fileManager": "pages/fileManager/fileManager.vue",
-    "fileEditor": "pages/fileEditor/fileEditor.vue"
+    "fileEditor": "pages/fileEditor/fileEditor.vue",
+    "deviceinfo": "pages/deviceinfo/deviceinfo.vue"
   },
   "options": {
     "style": {
