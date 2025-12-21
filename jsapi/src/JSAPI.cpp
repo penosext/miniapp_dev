@@ -4,10 +4,11 @@
 #include "AI/JSAI.hpp"
 #include "IME/JSIME.hpp"
 #include "ScanInput/JSScanInput.hpp"
-#include "Shell/JSShell.hpp"   // ✅ 确保包含Shell头文件
+#include "Shell/JSShell.hpp"   // ✅ 必须加
 
 using namespace JQUTIL_NS;
 
+// ✅ 把 Shell 加进导出列表
 static std::vector<std::string> exportList = {
     "AI",
     "IME",
@@ -22,7 +23,7 @@ static int module_init(JSContext *ctx, JSModuleDef *m)
     env->setModuleExport("AI", createAI(env.get()));
     env->setModuleExport("IME", createIME(env.get()));
     env->setModuleExport("ScanInput", createScanInput(env.get()));
-    env->setModuleExport("Shell", createShell(env.get()));
+    env->setModuleExport("Shell", createShell(env.get()));  // ✅ 正确位置
 
     env->setModuleExportDone(JS_UNDEFINED, exportList);
     return 0;
