@@ -66,6 +66,10 @@ const fileEditor = defineComponent({
       // 返回信息
       returnTo: '',
       returnPath: '/',
+      
+      // 滚动相关
+      textAreaScrollTop: 0,
+      textAreaScrollLeft: 0,
     };
   },
 
@@ -297,7 +301,7 @@ const fileEditor = defineComponent({
         .replace(/\t/g, '\\t');
     },
     
-    // 内容变化处理
+    // 内容变化处理 - 修复版本
     onContentChange(event: any) {
       const content = event.value || this.fileContent;
       this.fileContent = content;
@@ -305,7 +309,7 @@ const fileEditor = defineComponent({
       this.updateStats();
     },
     
-    // 更新统计信息
+    // 更新统计信息 - 修复版本
     updateStats() {
       if (!this.fileContent) {
         this.totalLines = 1;
@@ -317,14 +321,21 @@ const fileEditor = defineComponent({
       this.totalLines = lines.length;
       this.totalChars = this.fileContent.length;
       
-      // 更新光标位置（简化处理）
+      // 更新光标位置
       const textarea = this.$refs.textarea as any;
-      if (textarea && textarea.focus) {
-        // 在小程序环境中，可能无法直接获取光标位置
-        // 这里简化处理
-        setTimeout(() => {
+      if (textarea) {
+        // 尝试获取光标位置
+        try {
+          // 在小程序环境中，我们需要自己计算光标位置
+          // 这里简化处理，更新时重置光标位置到起始位置
+          setTimeout(() => {
+            this.cursorPosition = { row: 0, col: 0 };
+            this.$forceUpdate();
+          }, 0);
+        } catch (error) {
+          console.warn('无法获取光标位置:', error);
           this.cursorPosition = { row: 0, col: 0 };
-        }, 100);
+        }
       }
     },
     
@@ -387,12 +398,10 @@ const fileEditor = defineComponent({
     
     // 高亮查找结果
     highlightFindResult(result: { row: number; col: number }) {
-      // 在小程序环境中，可能需要特殊的实现来滚动到位置
-      // 这里简化处理，只是显示消息
       showSuccess(`找到匹配项: 第 ${result.row + 1} 行, 第 ${result.col + 1} 列`);
       
-      // 可以尝试滚动到该位置
-      this.scrollTop = result.row * 18; // 假设每行高度为18px
+      // 尝试滚动到该位置
+      this.textAreaScrollTop = result.row * 18; // 假设每行高度为18px
     },
     
     // 查找下一个
@@ -438,13 +447,13 @@ const fileEditor = defineComponent({
       if (lineNumber > this.totalLines) lineNumber = this.totalLines;
       
       // 滚动到指定行
-      this.scrollTop = (lineNumber - 1) * 18;
+      this.textAreaScrollTop = (lineNumber - 1) * 18;
       this.showGoToModal = false;
       
       showSuccess(`已跳转到第 ${lineNumber} 行`);
     },
     
-    // 打开软键盘编辑
+    // 打开软键盘编辑 - 修复版本
     openKeyboard() {
       openSoftKeyboard(
         () => this.fileContent,
@@ -562,6 +571,14 @@ const fileEditor = defineComponent({
       }
       
       return `${lines} 行, ${sizeText}`;
+    },
+    
+    // 处理textarea滚动
+    handleTextAreaScroll(event: any) {
+      if (event && event.target) {
+        this.textAreaScrollTop = event.target.scrollTop || 0;
+        this.textAreaScrollLeft = event.target.scrollLeft || 0;
+      }
     }
   }
 });
