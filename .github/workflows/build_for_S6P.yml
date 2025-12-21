@@ -8,7 +8,7 @@ on:
     - cron: '0 0 * * *'  # 每天0点自动触发
 
 env:
-  TOOLCHAIN_URL: https://github.com/penosext/Cloudpan/releases/download/toolchains/armv7-eabihf--glibc--stable-2024.02-1.tar.bz2
+  TOOLCHAIN_URL: https://github.com/penosext/Cloudpan/releases/download/toolchains/armv7-eabihf--glibc--stable-2018.11-1.tar.bz2
   VERSIONINFO_URL: https://github.com/penosext/Cloudpan/releases/download/PenS6Pro/S6PversionInfo.tar.gz
 
 jobs:
@@ -28,8 +28,8 @@ jobs:
           npm install -g pnpm@latest-10
           pnpm install --verbose -C ./ui
           mkdir -p ./jsapi/toolchains
-          wget -q ${{ env.TOOLCHAIN_URL }} -O ./jsapi/toolchains/armv7-eabihf--glibc--stable-2024.02-1.tar.bz2
-          tar -xjf ./jsapi/toolchains/armv7-eabihf--glibc--stable-2024.02-1.tar.bz2 -C ./jsapi/toolchains
+          wget -q ${{ env.TOOLCHAIN_URL }} -O ./jsapi/toolchains/armv7-eabihf--glibc--stable-2018.11-1.tar.bz2
+          tar -xjf ./jsapi/toolchains/armv7-eabihf--glibc--stable-2018.11-1.tar.bz2 -C ./jsapi/toolchains
           wget -q ${{ env.VERSIONINFO_URL }}
           tar -xf S6PversionInfo.tar.gz -C ./jsapi
 
