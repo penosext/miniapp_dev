@@ -122,10 +122,10 @@
     
     <!-- 上下文菜单 -->
     <div v-if="showMenu" :style="{ left: menuPosition.x + 'px', top: menuPosition.y + 'px' }" class="context-menu">
-      <div v-if="menuPosition.file" class="menu-item" @click="openFile(menuPosition.file!)">打开</div>
-      <div v-if="menuPosition.file && menuPosition.file.type !== 'directory'" class="menu-item" @click="editFile(menuPosition.file!)">编辑</div>
-      <div v-if="menuPosition.file" class="menu-item" @click="renameFile(menuPosition.file!)">重命名</div>
-      <div v-if="menuPosition.file" class="menu-item" @click="deleteFile(menuPosition.file!)">删除</div>
+      <div v-if="menuPosition.file" class="menu-item" @click="() => menuPosition.file && openFile(menuPosition.file)">打开</div>
+      <div v-if="menuPosition.file && menuPosition.file.type !== 'directory'" class="menu-item" @click="() => menuPosition.file && editFile(menuPosition.file)">编辑</div>
+      <div v-if="menuPosition.file" class="menu-item" @click="() => menuPosition.file && renameFile(menuPosition.file)">重命名</div>
+      <div v-if="menuPosition.file" class="menu-item" @click="() => menuPosition.file && deleteFile(menuPosition.file)">删除</div>
       <div class="menu-item" @click="createAndEditFile">新建文件</div>
       <div class="menu-item" @click="createDirectory">新建目录</div>
       <div class="menu-item" @click="toggleSelectAll">{{ files.length > 0 && files.every(f => f.selected) ? '取消全选' : '全选' }}</div>
@@ -189,14 +189,14 @@ export default {
     ToastMessage
   },
   methods: {
-    handleFileTouchStart(e: TouchEvent, file: FileItem) {
+    handleFileTouchStart(e, file) {
       this.touchStartTime = Date.now();
       this.touchStartX = e.touches[0].clientX;
       this.touchStartY = e.touches[0].clientY;
       this.touchedFile = file;
     },
     
-    handleFileTouchEnd(e: TouchEvent, file: FileItem) {
+    handleFileTouchEnd(e, file) {
       const touchTime = Date.now() - this.touchStartTime;
       const touchEndX = e.changedTouches[0].clientX;
       const touchEndY = e.changedTouches[0].clientY;
@@ -209,7 +209,7 @@ export default {
       }
     },
     
-    toggleSort(field: 'name' | 'size' | 'modified' | 'type') {
+    toggleSort(field) {
       if (this.sortField === field) {
         this.sortAsc = !this.sortAsc;
       } else {
@@ -227,6 +227,23 @@ export default {
         batch: true 
       };
       this.showOperationModal = true;
+    },
+    
+    // 包装方法以避免模板中的类型检查问题
+    openFileSafe(file) {
+      if (file) this.openFile(file);
+    },
+    
+    editFileSafe(file) {
+      if (file) this.editFile(file);
+    },
+    
+    renameFileSafe(file) {
+      if (file) this.renameFile(file);
+    },
+    
+    deleteFileSafe(file) {
+      if (file) this.deleteFile(file);
     }
   },
   data() {
@@ -235,7 +252,7 @@ export default {
       touchStartTime: 0,
       touchStartX: 0,
       touchStartY: 0,
-      touchedFile: null as any
+      touchedFile: null
     };
   }
 };
