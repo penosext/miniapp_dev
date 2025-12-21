@@ -6,7 +6,9 @@
     "softKeyboard": "pages/softKeyboard/softKeyboard.vue",
     "aiSettings": "pages/aiSettings/aiSettings.vue",
     "aiHistory": "pages/aiHistory/aiHistory.vue",
-    "aiNav": "pages/aiNav/aiNav.vue"
+    "aiNav": "pages/aiNav/aiNav.vue",
+    "fileManager": "pages/fileManager/fileManager.vue",
+    "fileEditor": "pages/fileEditor/fileEditor.vue"
   },
   "options": {
     "style": {
