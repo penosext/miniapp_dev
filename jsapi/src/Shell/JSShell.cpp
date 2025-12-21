@@ -1,7 +1,8 @@
 #include "JSShell.hpp"
 #include <Exceptions/AssertFailed.hpp>
-#include <nlohmann/json.hpp>
 #include <sstream>
+
+using namespace JQUTIL_NS;
 
 JSShell::JSShell() {}
 JSShell::~JSShell() {
@@ -62,18 +63,13 @@ void JSShell::createInteractiveSession(JQFunctionInfo& info) {
 
 void JSShell::startInteractive(JQAsyncInfo& info) {
     try {
-        ASSERT(info.Length() >= 2 && info.Length() <= 3);
+        ASSERT(info.Length() >= 2);
         
-        // 直接从info获取参数，不通过GetContext
+        // 直接从info获取参数
         int sessionId = info[0].int32_value();
         std::string command = info[1].string_value();
         
         Shell::PTYConfig config;
-        if (info.Length() == 3 && info[2].is_object()) {
-            // 使用简单的方式：JSON字符串解析
-            // 因为JSAI.cpp中没有直接处理object的例子，我们改用字符串方式
-            // 让JavaScript端传递JSON字符串
-        }
         
         auto* session = getSession(sessionId);
         ASSERT(session != nullptr);
@@ -223,29 +219,4 @@ void JSShell::getSessionPid(JQFunctionInfo& info) {
     } catch (const std::exception& e) {
         info.GetReturnValue().ThrowInternalError(e.what());
     }
-}
-
-JSValue createShell(JQModuleEnv* env)
-{
-    JQFunctionTemplateRef tpl = JQFunctionTemplate::New(env, "Shell");
-    tpl->InstanceTemplate()->setObjectCreator([]() {
-        return new JSShell();
-    });
-
-    tpl->SetProtoMethod("initialize", &JSShell::initialize);
-    tpl->SetProtoMethodPromise("exec", &JSShell::exec);
-    
-    // 新增交互式接口
-    tpl->SetProtoMethod("createInteractiveSession", &JSShell::createInteractiveSession);
-    tpl->SetProtoMethodPromise("startInteractive", &JSShell::startInteractive);
-    tpl->SetProtoMethod("writeToSession", &JSShell::writeToSession);
-    tpl->SetProtoMethod("readFromSession", &JSShell::readFromSession);
-    tpl->SetProtoMethod("resizeSession", &JSShell::resizeSession);
-    tpl->SetProtoMethod("sendSignalToSession", &JSShell::sendSignalToSession);
-    tpl->SetProtoMethod("terminateSession", &JSShell::terminateSession);
-    tpl->SetProtoMethod("isSessionRunning", &JSShell::isSessionRunning);
-    tpl->SetProtoMethod("getSessionPid", &JSShell::getSessionPid);
-
-    JSShell::InitTpl(tpl);
-    return tpl->CallConstructor();
 }

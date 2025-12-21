@@ -22,7 +22,7 @@ public:
         int cols = 80;      // 终端列数
         bool echo = false;  // 是否回显
         bool canonical = true; // 是否规范模式
-        std::string termType = "xterm-256color"; // 终端类型
+        std::string termType = "xterm"; // 终端类型
     };
 
     // 交互式命令执行（阻塞式）
@@ -43,9 +43,6 @@ public:
         
         // 读取进程输出
         std::string read();
-        
-        // 获取输出（非阻塞）
-        std::string readNonBlocking();
         
         // 发送信号
         bool sendSignal(int sig);
