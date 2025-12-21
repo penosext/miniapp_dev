@@ -18,153 +18,89 @@
 -->
 
 <template>
-  <div class="file-manager-container" @click="hideMenu" @touchstart="hideMenu">
-    
-    <!-- 标题栏 -->
-    <div class="file-header">
-      <text class="header-title">文件管理器</text>
-      <text class="header-stats">{{ stats }}</text>
-      <text @click="refreshDirectory" class="toolbar-btn-icon" style="background-color: #17a2b8;">↻</text>
-    </div>
-    
-    <!-- 路径栏 -->
-    <div class="path-bar">
-      <scroller class="path-scroller" scroll-direction="horizontal" :show-scrollbar="false">
-        <text class="path-text">{{ currentPath }}</text>
-      </scroller>
-      <text @click="goBack" :class="'path-btn' + (canGoBack ? ' btn-info-small' : ' btn-disabled-small')">返回</text>
-      <text @click="goForward" :class="'path-btn' + (canGoForward ? ' btn-info-small' : ' btn-disabled-small')">前进</text>
-    </div>
-    
-    <!-- 工具栏 -->
-    <div class="toolbar-compact">
-      <div class="toolbar-row">
-        <text @click="goUp" :class="'toolbar-btn-small' + (canGoBack ? ' btn-primary-small' : ' btn-disabled-small')">上级</text>
-        <text @click="navigateTo('/')" class="toolbar-btn-small btn-primary-small">根目录</text>
-        <text @click="createAndEditFile" class="toolbar-btn-small btn-success-small">新建文件</text>
-        <text @click="createDirectory" class="toolbar-btn-small btn-success-small">新建目录</text>
-      </div>
-      <div class="toolbar-row">
-        <text @click="toggleSelectAll" class="toolbar-btn-small btn-warning-small">{{ selectAllText }}</text>
-        <text @click="toggleSort('name')" class="toolbar-btn-small btn-info-small">名称{{ sortField === 'name' ? (sortAsc ? '↑' : '↓') : '' }}</text>
-        <text @click="toggleSort('size')" class="toolbar-btn-small btn-info-small">大小{{ sortField === 'size' ? (sortAsc ? '↑' : '↓') : '' }}</text>
-        <text @click="toggleSort('modified')" class="toolbar-btn-small btn-info-small">时间{{ sortField === 'modified' ? (sortAsc ? '↑' : '↓') : '' }}</text>
-      </div>
-    </div>
-    
-    <!-- 搜索栏 -->
-    <div class="search-bar">
-      <input type="text" class="search-input" v-model="searchKeyword" placeholder="搜索文件或目录..." />
-      <text v-if="searchKeyword" @click="searchKeyword = ''" class="search-clear">✕</text>
-    </div>
-    
-    <!-- 文件列表 -->
-    <div class="file-list-container">
-      <scroller class="file-scroller" scroll-direction="vertical" :show-scrollbar="true" ref="scroller">
+  <div>
+    <scroller class="container" scroll-direction="vertical" :show-scrollbar="true">
+      <!-- 路径和操作栏 -->
+      <div class="section">
+        <text class="section-title">文件管理器</text>
         
-        <!-- 加载状态 -->
-        <div v-if="isLoading" class="loading-container">
-          <text class="loading-text">正在加载...</text>
+        <div class="item">
+          <text class="item-text">当前路径:</text>
+          <text class="file-path">{{ currentPath }}</text>
+          <text @click="goBack" :class="'btn' + (canGoBack ? ' btn-primary' : ' btn-disabled')">返回上级</text>
         </div>
         
-        <!-- 空状态 -->
-        <div v-else-if="filteredFiles.length === 0" class="empty-state">
-          <text class="empty-icon">{{ searchKeyword ? '🔍' : '📁' }}</text>
-          <text class="empty-text">{{ searchKeyword ? '没有找到匹配的文件' : '目录为空' }}</text>
+        <div class="item">
+          <text class="item-text">搜索文件:</text>
+          <text class="item-input" @click="searchFiles">{{ searchKeyword || '点击搜索文件...' }}</text>
+          <text v-if="searchKeyword" @click="clearSearch" class="btn btn-danger">清除</text>
         </div>
         
-        <!-- 文件列表 -->
-        <div v-else v-for="file in filteredFiles" :key="file.id"
-             @click="selectionMode ? toggleSelection(file) : openFile(file)"
-             @touchstart="handleFileTouchStart($event, file)"
-             @touchend="handleFileTouchEnd($event, file)"
-             @contextmenu="showContextMenu($event, file)"
-             :class="'file-item-compact' + (file.selected ? ' selected' : '')">
-          
-          <!-- 选择框 -->
-          <text class="file-checkbox" @click.stop="toggleSelection(file)">
-            {{ file.selected ? '✓' : '' }}
+        <div class="item">
+          <text class="item-text">统计信息:</text>
+          <text class="file-stats">{{ totalFiles }} 个项目, {{ formatSize(totalSize) }}</text>
+          <text @click="toggleHiddenFiles" :class="'btn' + (showHiddenFiles ? ' btn-warning' : '')">
+            {{ showHiddenFiles ? '隐藏' : '显示' }}隐藏文件
           </text>
+        </div>
+      </div>
+      
+      <!-- 操作按钮 -->
+      <div class="section">
+        <text class="section-title">文件操作</text>
+        <div class="operations-grid">
+          <text @click="createNewFile" class="operation-btn operation-btn-success">新建文件</text>
+          <text @click="createNewDirectory" class="operation-btn operation-btn-success">新建目录</text>
+          <text @click="refreshDirectory" class="operation-btn operation-btn-primary">刷新目录</text>
+          <text @click="$falcon.navTo('index', {})" class="operation-btn">返回主页</text>
+        </div>
+      </div>
+      
+      <!-- 文件列表 -->
+      <div class="section">
+        <text class="section-title">文件列表</text>
+        
+        <div v-if="filteredFiles.length === 0" class="file-empty">
+          <text class="empty-title">目录为空</text>
+          <text v-if="searchKeyword" class="empty-description">没有找到匹配的文件</text>
+          <text v-else class="empty-description">点击上方按钮创建文件或目录</text>
+        </div>
+        
+        <div v-for="file in filteredFiles" :key="file.fullPath" 
+             class="file-item" 
+             @click="openItem(file)"
+             @contextmenu="showContextMenu($event, file)">
           
-          <!-- 文件图标 -->
-          <text :class="'file-icon icon-' + file.type">
-            {{ getFileIcon(file) }}
-          </text>
+          <text :class="getFileIconClass(file)">{{ file.icon }}</text>
+          <text class="file-name">{{ file.name }}</text>
+          <text class="file-size">{{ file.sizeFormatted }}</text>
+          <text class="file-date">{{ file.modifiedTimeFormatted }}</text>
           
-          <!-- 文件信息 -->
-          <div class="file-info">
-            <text class="file-name">{{ file.name }}</text>
-            <div class="file-details">
-              <text class="file-size">{{ formatFileSize(file.size) }}</text>
-              <text class="file-modified">{{ file.modified }}</text>
-              <text class="file-type">{{ getFileTypeText(file) }}</text>
-            </div>
-          </div>
-          
-          <!-- 操作按钮（悬停显示） -->
-          <div v-if="!selectionMode" class="file-actions">
-            <text @click.stop="editFile(file)" class="action-btn-small btn-primary-small">编</text>
-            <text @click.stop="renameFile(file)" class="action-btn-small btn-warning-small">重</text>
-            <text @click.stop="deleteFile(file)" class="action-btn-small btn-danger-small">删</text>
+          <div class="file-actions">
+            <text @click.stop="renameItem(file)" class="btn btn-warning">重命名</text>
+            <text @click.stop="deleteItem(file)" class="btn btn-danger">删除</text>
           </div>
         </div>
-      </scroller>
-    </div>
-    
-    <!-- 底部操作栏 -->
-    <div v-if="selectionMode" class="bottom-bar">
-      <text class="selection-info">{{ selectionText }}</text>
-      <div class="bottom-actions">
-        <text @click="clearSelection" class="bottom-btn btn-warning-small">取消</text>
-        <text @click="batchDelete" class="bottom-btn btn-danger-small">删除</text>
       </div>
-    </div>
+    </scroller>
     
     <!-- 上下文菜单 -->
-    <div v-if="showMenu" :style="{ left: menuPosition.x + 'px', top: menuPosition.y + 'px' }" class="context-menu">
-      <div v-if="menuPosition && menuPosition.file" class="menu-item" @click="openFileSafe(menuPosition.file)">打开</div>
-      <div v-if="menuPosition && menuPosition.file && menuPosition.file.type !== 'directory'" class="menu-item" @click="editFileSafe(menuPosition.file)">编辑</div>
-      <div v-if="menuPosition && menuPosition.file" class="menu-item" @click="renameFileSafe(menuPosition.file)">重命名</div>
-      <div v-if="menuPosition && menuPosition.file" class="menu-item" @click="deleteFileSafe(menuPosition.file)">删除</div>
-      <div class="menu-item" @click="createAndEditFile">新建文件</div>
-      <div class="menu-item" @click="createDirectory">新建目录</div>
-      <div class="menu-item" @click="toggleSelectAll">{{ selectAllText }}</div>
-      <div class="menu-item" @click="hideMenu">关闭</div>
+    <div v-if="showContextMenu && selectedFile" class="context-menu" 
+         :style="{ left: contextMenuX + 'px', top: contextMenuY + 'px' }">
+      <div @click="executeContextMenu('open')" class="menu-item">打开</div>
+      <div @click="executeContextMenu('rename')" class="menu-item">重命名</div>
+      <div @click="executeContextMenu('delete')" class="menu-item">删除</div>
+      <div @click="executeContextMenu('copy_path')" class="menu-item">复制路径</div>
+      <div @click="executeContextMenu('properties')" class="menu-item">属性</div>
     </div>
     
-    <!-- 操作模态框 -->
-    <div v-if="showOperationModal" class="operation-modal">
-      <text class="modal-title">
-        {{
-          operationType === 'newfile' ? '新建文件' :
-          operationType === 'newfolder' ? '新建目录' :
-          operationType === 'rename' ? '重命名' :
-          operationType === 'delete' ? '确认删除' : ''
-        }}
-      </text>
-      
-      <div v-if="operationType === 'newfile' || operationType === 'newfolder' || operationType === 'rename'">
-        <input type="text" class="modal-input" 
-               v-model="operationData.newName" 
-               :placeholder="operationType === 'rename' ? '输入新名称' : '输入名称'" 
-               auto-focus />
-      </div>
-      
-      <div v-else-if="operationType === 'delete'">
-        <text style="color: #ffffff; text-align: center; margin: 10px 0;">
-          确定要删除 "{{ getFileNameToDelete() }}" 吗？
-        </text>
-        <text style="color: #ffc107; font-size: 12px; text-align: center;">
-          此操作无法撤销！
-        </text>
-      </div>
-      
-      <div class="modal-buttons">
-        <text @click="handleOperationConfirm" 
-              :class="'bottom-btn' + (operationType === 'delete' ? ' btn-danger-small' : ' btn-success-small')">
-          {{ operationType === 'delete' ? '删除' : '确定' }}
-        </text>
-        <text @click="handleOperationCancel" class="bottom-btn btn-warning-small">取消</text>
+    <!-- 确认对话框 -->
+    <div v-if="showConfirmModal" class="confirm-modal">
+      <text class="confirm-title">{{ confirmTitle }}</text>
+      <text class="confirm-message">{{ confirmMessage }}</text>
+      <div class="confirm-buttons">
+        <text @click="executeConfirmAction" class="toolbar-btn toolbar-btn-danger">确定</text>
+        <text @click="cancelConfirmAction" class="toolbar-btn">取消</text>
       </div>
     </div>
     
@@ -181,94 +117,11 @@
 import fileManager from './fileManager';
 import Loading from '../../components/Loading.vue';
 import ToastMessage from '../../components/ToastMessage.vue';
-
 export default {
   ...fileManager,
   components: {
     Loading,
     ToastMessage
-  },
-  computed: {
-    // 计算全选文本
-    selectAllText() {
-      const allSelected = this.files.length > 0 && this.files.every(f => f.selected);
-      return allSelected ? '取消全选' : '全选';
-    }
-  },
-  methods: {
-    handleFileTouchStart(e, file) {
-      this.touchStartTime = Date.now();
-      this.touchStartX = e.touches[0].clientX;
-      this.touchStartY = e.touches[0].clientY;
-      this.touchedFile = file;
-    },
-    
-    handleFileTouchEnd(e, file) {
-      const touchTime = Date.now() - this.touchStartTime;
-      const touchEndX = e.changedTouches[0].clientX;
-      const touchEndY = e.changedTouches[0].clientY;
-      const distanceX = Math.abs(touchEndX - this.touchStartX);
-      const distanceY = Math.abs(touchEndY - this.touchStartY);
-      
-      // 长按触发上下文菜单
-      if (touchTime > 500 && distanceX < 10 && distanceY < 10) {
-        this.showContextMenu(e, file);
-      }
-    },
-    
-    toggleSort(field) {
-      if (this.sortField === field) {
-        this.sortAsc = !this.sortAsc;
-      } else {
-        this.sortField = field;
-        this.sortAsc = true;
-      }
-    },
-    
-    batchDelete() {
-      if (this.selectedFiles.length === 0) return;
-      
-      this.operationType = 'delete';
-      this.operationData = { 
-        files: [...this.selectedFiles],
-        batch: true 
-      };
-      this.showOperationModal = true;
-    },
-    
-    // 包装方法以避免模板中的类型检查问题
-    openFileSafe(file) {
-      if (file) this.openFile(file);
-    },
-    
-    editFileSafe(file) {
-      if (file) this.editFile(file);
-    },
-    
-    renameFileSafe(file) {
-      if (file) this.renameFile(file);
-    },
-    
-    deleteFileSafe(file) {
-      if (file) this.deleteFile(file);
-    },
-    
-    // 获取要删除的文件名
-    getFileNameToDelete() {
-      if (!this.operationData || !this.operationData.file) {
-        return '';
-      }
-      return this.operationData.file.name || '';
-    }
-  },
-  data() {
-    return {
-      ...fileManager.data(),
-      touchStartTime: 0,
-      touchStartX: 0,
-      touchStartY: 0,
-      touchedFile: null
-    };
   }
 };
 </script>

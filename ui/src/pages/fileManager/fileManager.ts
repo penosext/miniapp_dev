@@ -19,183 +19,123 @@ import { defineComponent } from 'vue';
 import { Shell } from 'langningchen';
 import { showError, showSuccess, showWarning, showInfo } from '../../components/ToastMessage';
 import { hideLoading, showLoading } from '../../components/Loading';
+import { openSoftKeyboard } from '../../utils/softKeyboardUtils';
+import { formatTime } from '../../utils/timeUtils';
 
-export type FileManagerOptions = {};
+export type FileManagerOptions = {
+  path?: string;
+  refresh?: boolean;
+};
 
-interface FileItem {
-  id: string;
+export interface FileItem {
   name: string;
-  type: 'directory' | 'file' | 'executable' | 'link';
+  type: 'file' | 'directory' | 'link' | 'unknown';
   size: number;
+  sizeFormatted: string;
+  modifiedTime: number;
+  modifiedTimeFormatted: string;
   permissions: string;
-  modified: string;
+  isHidden: boolean;
   fullPath: string;
-  selected: boolean;
+  icon: string;
+  isExecutable: boolean;
 }
 
-interface MenuPosition {
-  x: number;
-  y: number;
-  file?: FileItem;
-}
-
-const fileManager = defineComponent({
+export default defineComponent({
   data() {
     return {
       $page: {} as FalconPage<FileManagerOptions>,
       
-      // 文件列表相关
+      // 文件系统状态
       currentPath: '/',
-      files: [] as FileItem[],
-      isLoading: false,
+      fileList: [] as FileItem[],
       shellInitialized: false,
+      isLoading: false,
       
-      // 搜索相关
+      // 操作状态
+      showContextMenu: false,
+      contextMenuX: 0,
+      contextMenuY: 0,
+      selectedFile: null as FileItem | null,
+      showConfirmModal: false,
+      confirmTitle: '',
+      confirmMessage: '',
+      confirmCallback: null as (() => void) | null,
+      
+      // 搜索状态
       searchKeyword: '',
-      isSearching: false,
+      showHiddenFiles: false,
       
-      // 选择相关
-      selectedFiles: [] as FileItem[],
-      selectionMode: false,
-      
-      // 操作相关
-      showMenu: false,
-      menuPosition: { x: 0, y: 0 } as MenuPosition,
-      showOperationModal: false,
-      operationType: '' as 'rename' | 'delete' | 'copy' | 'move' | 'newfile' | 'newfolder' | '',
-      operationData: {} as any,
-      
-      // 排序相关
-      sortField: 'name' as 'name' | 'size' | 'modified' | 'type',
-      sortAsc: true,
-      
-      // 历史记录
-      history: [] as string[],
-      historyIndex: 0,
+      // 统计信息
+      totalFiles: 0,
+      totalSize: 0,
+      selectedCount: 0,
     };
   },
 
-  created() {
-    this.$page.on("show", this.onPageShow);
-    this.$page.on("newoptions", this.onNewOptions);
-  },
-  
-  destroyed() {
-    this.$page.off("show", this.onPageShow);
-    this.$page.off("newoptions", this.onNewOptions);
-  },
-
-  mounted() {
-    console.log('文件管理器开始初始化...');
-    this.initializeShell();
-    this.history = ['/'];
-    this.historyIndex = 0;
+  async mounted() {
+    console.log('文件管理器页面加载...');
     
-    // 监听编辑器保存事件
-    $falcon.on<string>('file_saved', this.handleFileSaved);
+    // 获取初始路径
+    const options = this.$page.loadOptions;
+    this.currentPath = options.path || '/';
+    
+    // 设置页面返回键处理
+    this.$page.$npage.setSupportBack(true);
+    this.$page.$npage.on("backpressed", this.handleBackPress);
+    
+    // 监听文件保存事件
+    $falcon.on('file_saved', this.handleFileSaved);
+    
+    await this.initializeShell();
   },
 
   beforeDestroy() {
+    this.$page.$npage.off("backpressed", this.handleBackPress);
     $falcon.off('file_saved', this.handleFileSaved);
   },
 
   computed: {
-    // 过滤和排序文件
     filteredFiles(): FileItem[] {
-      let result = [...this.files];
+      let files = [...this.fileList];
       
-      // 搜索过滤
-      if (this.searchKeyword) {
-        const keyword = this.searchKeyword.toLowerCase();
-        result = result.filter(file => 
-          file.name.toLowerCase().includes(keyword) ||
-          file.type.toLowerCase().includes(keyword)
-        );
+      // 过滤隐藏文件
+      if (!this.showHiddenFiles) {
+        files = files.filter(file => !file.isHidden);
       }
       
-      // 排序
-      result.sort((a, b) => {
-        // 目录始终在前
+      // 过滤搜索关键词
+      if (this.searchKeyword) {
+        const keyword = this.searchKeyword.toLowerCase();
+        files = files.filter(file => file.name.toLowerCase().includes(keyword));
+      }
+      
+      // 排序：目录在前，文件在后，按名称排序
+      files.sort((a, b) => {
         if (a.type === 'directory' && b.type !== 'directory') return -1;
         if (a.type !== 'directory' && b.type === 'directory') return 1;
-        
-        let aValue: any, bValue: any;
-        
-        switch (this.sortField) {
-          case 'name':
-            aValue = a.name.toLowerCase();
-            bValue = b.name.toLowerCase();
-            break;
-          case 'size':
-            aValue = a.size;
-            bValue = b.size;
-            break;
-          case 'modified':
-            aValue = new Date(a.modified).getTime();
-            bValue = new Date(b.modified).getTime();
-            break;
-          case 'type':
-            aValue = a.type;
-            bValue = b.type;
-            break;
-          default:
-            aValue = a.name;
-            bValue = b.name;
-        }
-        
-        if (aValue < bValue) return this.sortAsc ? -1 : 1;
-        if (aValue > bValue) return this.sortAsc ? 1 : -1;
-        return 0;
+        return a.name.localeCompare(b.name);
       });
       
-      return result;
+      return files;
     },
     
-    // 统计信息
-    stats(): string {
-      const total = this.files.length;
-      const dirs = this.files.filter(f => f.type === 'directory').length;
-      const files = total - dirs;
-      return `${dirs}目录 ${files}文件`;
-    },
-    
-    // 选择信息
-    selectionText(): string {
-      if (this.selectedFiles.length === 0) return '';
-      return `已选 ${this.selectedFiles.length} 项`;
-    },
-    
-    // 是否可以返回上级
     canGoBack(): boolean {
       return this.currentPath !== '/';
     },
     
-    // 是否可以前进
-    canGoForward(): boolean {
-      return this.historyIndex < this.history.length - 1;
+    parentPath(): string {
+      if (this.currentPath === '/') return '/';
+      const parts = this.currentPath.split('/').filter(part => part);
+      parts.pop();
+      return parts.length ? '/' + parts.join('/') : '/';
     },
   },
 
   methods: {
-    // 页面显示时刷新
-    onPageShow() {
-      if (this.shellInitialized) {
-        this.refreshDirectory();
-      }
-    },
-    
-    // 新参数
-    onNewOptions(options: any) {
-      if (options.path) {
-        this.navigateTo(options.path);
-      }
-    },
-    
     // 初始化Shell
     async initializeShell() {
       try {
-        this.isLoading = true;
-        
         if (!Shell) {
           throw new Error('Shell对象未定义');
         }
@@ -207,488 +147,542 @@ const fileManager = defineComponent({
         await Shell.initialize();
         this.shellInitialized = true;
         
-        // 加载根目录
-        await this.loadDirectory('/');
+        // 加载当前目录
+        await this.loadDirectory();
         
       } catch (error: any) {
-        console.error('Shell初始化失败:', error);
-        showError(`Shell初始化失败: ${error.message}`);
+        console.error('Shell模块初始化失败:', error);
+        showError(`Shell模块初始化失败: ${error.message}`);
         this.shellInitialized = false;
-      } finally {
-        this.isLoading = false;
       }
     },
     
     // 加载目录
-    async loadDirectory(path: string) {
+    async loadDirectory() {
       if (!this.shellInitialized || !Shell) {
-        showError('Shell未初始化');
+        showError('Shell模块未初始化');
         return;
       }
       
       try {
         this.isLoading = true;
-        this.selectedFiles = [];
-        this.selectionMode = false;
+        showLoading();
         
-        // 记录历史
-        if (this.currentPath !== path) {
-          this.history = this.history.slice(0, this.historyIndex + 1);
-          this.history.push(path);
-          this.historyIndex = this.history.length - 1;
+        console.log('加载目录:', this.currentPath);
+        
+        // 确保路径格式正确
+        let path = this.currentPath;
+        if (!path.startsWith('/')) {
+          path = '/' + path;
         }
-        
+        if (path !== '/' && path.endsWith('/')) {
+          path = path.slice(0, -1);
+        }
         this.currentPath = path;
         
-        // 获取目录列表
-        const command = `cd "${path}" && ls -lah --time-style=long-iso | grep -v '^total'`;
-        const result = await Shell.exec(command);
+        // 检查目录是否存在
+        const checkCmd = `test -d "${path}" && echo "exists" || echo "not exists"`;
+        const existsResult = await Shell.exec(checkCmd);
+        
+        if (existsResult.trim() === 'not exists') {
+          showError(`目录不存在: ${path}`);
+          this.currentPath = '/';
+          await this.loadDirectory();
+          return;
+        }
+        
+        // 列出文件和目录
+        const listCmd = `cd "${path}" && ls -la --time-style=+%s | tail -n +2`;
+        const result = await Shell.exec(listCmd);
         
         // 解析结果
-        this.parseDirectoryListing(result, path);
+        this.parseFileList(result);
+        
+        // 更新统计信息
+        this.updateStats();
         
       } catch (error: any) {
         console.error('加载目录失败:', error);
         showError(`加载目录失败: ${error.message}`);
-        this.files = [];
+        this.fileList = [];
       } finally {
         this.isLoading = false;
+        hideLoading();
       }
     },
     
-    // 解析目录列表
-    parseDirectoryListing(output: string, currentPath: string) {
-      const lines = output.trim().split('\n');
+    // 解析文件列表
+    parseFileList(lsOutput: string) {
       const files: FileItem[] = [];
+      const lines = lsOutput.trim().split('\n');
       
-      lines.forEach((line, index) => {
-        if (!line.trim()) return;
+      for (const line of lines) {
+        const file = this.parseFileLine(line);
+        if (file) {
+          files.push(file);
+        }
+      }
+      
+      this.fileList = files;
+    },
+    
+    // 解析单行文件信息
+    parseFileLine(line: string): FileItem | null {
+      // ls -la 输出格式示例:
+      // drwxr-xr-x 2 user group 4096 1700000000 .
+      // -rw-r--r-- 1 user group 1024 1700000000 file.txt
+      const parts = line.trim().split(/\s+/);
+      
+      if (parts.length < 8) return null;
+      
+      const permissions = parts[0];
+      // const links = parts[1];
+      // const owner = parts[2];
+      // const group = parts[3];
+      const size = parseInt(parts[4], 10);
+      const timestamp = parseInt(parts[5], 10);
+      const name = parts.slice(6).join(' ');
+      
+      // 跳过 . 和 ..
+      if (name === '.' || name === '..') return null;
+      
+      // 判断文件类型
+      const typeChar = permissions[0];
+      let type: 'file' | 'directory' | 'link' | 'unknown' = 'unknown';
+      let icon = '?';
+      
+      if (typeChar === '-') {
+        type = 'file';
+        // 根据文件扩展名设置图标
+        if (name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm)$/i)) {
+          icon = '文';
+        } else if (name.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) {
+          icon = '图';
+        } else if (name.match(/\.(amr|apk|bin|so)$/i)) {
+          icon = '执';
+        } else {
+          icon = '文';
+        }
+      } else if (typeChar === 'd') {
+        type = 'directory';
+        icon = '📁';
+      } else if (typeChar === 'l') {
+        type = 'link';
+        icon = '🔗';
+      }
+      
+      // 格式化大小
+      let sizeFormatted = '';
+      if (type === 'directory') {
+        sizeFormatted = '<DIR>';
+      } else if (size < 1024) {
+        sizeFormatted = `${size} B`;
+      } else if (size < 1024 * 1024) {
+        sizeFormatted = `${(size / 1024).toFixed(1)} KB`;
+      } else if (size < 1024 * 1024 * 1024) {
+        sizeFormatted = `${(size / (1024 * 1024)).toFixed(1)} MB`;
+      } else {
+        sizeFormatted = `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+      }
+      
+      // 判断是否为隐藏文件
+      const isHidden = name.startsWith('.');
+      
+      // 判断是否可执行
+      const isExecutable = permissions.includes('x');
+      
+      // 获取完整路径
+      const fullPath = this.currentPath === '/' 
+        ? `/${name}` 
+        : `${this.currentPath}/${name}`;
+      
+      return {
+        name,
+        type,
+        size,
+        sizeFormatted,
+        modifiedTime: timestamp,
+        modifiedTimeFormatted: formatTime(timestamp),
+        permissions,
+        isHidden,
+        fullPath,
+        icon,
+        isExecutable,
+      };
+    },
+    
+    // 更新统计信息
+    updateStats() {
+      this.totalFiles = this.fileList.length;
+      
+      // 计算总大小（仅文件）
+      this.totalSize = this.fileList
+        .filter(file => file.type === 'file')
+        .reduce((sum, file) => sum + file.size, 0);
+      
+      this.selectedCount = 0; // 重置选择计数
+    },
+    
+    // 打开文件或目录
+    async openItem(item: FileItem) {
+      if (item.type === 'directory') {
+        // 进入目录
+        this.currentPath = item.fullPath;
+        await this.loadDirectory();
+      } else {
+        // 打开文件
+        await this.openFile(item);
+      }
+    },
+    
+    // 打开文件
+    async openFile(file: FileItem) {
+      console.log('打开文件:', file.fullPath);
+      
+      // 检查文件是否存在且可读
+      try {
+        const checkCmd = `test -f "${file.fullPath}" && echo "exists" || echo "not exists"`;
+        const existsResult = await Shell.exec(checkCmd);
         
-        const parts = line.trim().split(/\s+/);
-        if (parts.length < 8) return;
-        
-        const permissions = parts[0];
-        const links = parts[1];
-        const owner = parts[2];
-        const group = parts[3];
-        const size = parts[4];
-        const date = parts.slice(5, 7).join(' ');
-        const name = parts.slice(7).join(' ');
-        
-        // 排除当前目录和上级目录
-        if (name === '.' || name === '..') return;
-        
-        // 确定文件类型
-        let type: FileItem['type'] = 'file';
-        if (permissions.startsWith('d')) {
-          type = 'directory';
-        } else if (permissions.includes('x')) {
-          type = 'executable';
-        } else if (permissions.startsWith('l')) {
-          type = 'link';
+        if (existsResult.trim() === 'not exists') {
+          showError(`文件不存在: ${file.fullPath}`);
+          return;
         }
         
-        // 解析文件大小
-        let sizeNum = 0;
-        if (size !== '-') {
-          const sizeMatch = size.match(/^(\d+(\.\d+)?)([KMGTP])?$/);
-          if (sizeMatch) {
-            sizeNum = parseFloat(sizeMatch[1]);
-            const unit = sizeMatch[3];
-            if (unit === 'K') sizeNum *= 1024;
-            else if (unit === 'M') sizeNum *= 1024 * 1024;
-            else if (unit === 'G') sizeNum *= 1024 * 1024 * 1024;
-          }
+        // 判断文件类型，如果是文本文件则用编辑器打开
+        const isTextFile = file.name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash|log|conf|ini|yml|yaml)$/i);
+        
+        if (isTextFile) {
+          // 用文件编辑器打开
+          $falcon.navTo('fileEditor', {
+            filePath: file.fullPath,
+            returnTo: 'fileManager',
+            returnPath: this.currentPath,
+          });
+        } else {
+          // 尝试用系统默认方式打开
+          showInfo(`打开文件: ${file.name} (暂不支持此文件类型)`);
         }
         
-        // 构建完整路径
-        const fullPath = currentPath === '/' ? `/${name}` : `${currentPath}/${name}`;
-        
-        files.push({
-          id: `file-${index}-${Date.now()}`,
-          name,
-          type,
-          size: sizeNum,
-          permissions,
-          modified: date,
-          fullPath,
-          selected: false
-        });
-      });
+      } catch (error: any) {
+        console.error('打开文件失败:', error);
+        showError(`打开文件失败: ${error.message}`);
+      }
+    },
+    
+    // 返回上一级
+    async goBack() {
+      if (!this.canGoBack) return;
       
-      this.files = files;
+      this.currentPath = this.parentPath;
+      await this.loadDirectory();
     },
     
     // 刷新目录
     async refreshDirectory() {
-      await this.loadDirectory(this.currentPath);
-      showInfo('目录已刷新');
+      await this.loadDirectory();
+      showSuccess('目录已刷新');
     },
     
-    // 进入目录
-    async enterDirectory(file: FileItem) {
-      if (file.type !== 'directory') {
-        this.openFile(file);
-        return;
-      }
-      
-      await this.loadDirectory(file.fullPath);
+    // 创建新文件
+    async createNewFile() {
+      openSoftKeyboard(
+        () => '',
+        async (fileName) => {
+          if (!fileName.trim()) {
+            showWarning('文件名不能为空');
+            return;
+          }
+          
+          try {
+            showLoading();
+            
+            const fullPath = this.currentPath === '/' 
+              ? `/${fileName}`
+              : `${this.currentPath}/${fileName}`;
+            
+            // 创建空文件
+            await Shell.exec(`touch "${fullPath}"`);
+            
+            showSuccess(`文件创建成功: ${fileName}`);
+            await this.loadDirectory();
+            
+          } catch (error: any) {
+            console.error('创建文件失败:', error);
+            showError(`创建文件失败: ${error.message}`);
+          } finally {
+            hideLoading();
+          }
+        },
+        (value) => {
+          if (!value.trim()) return '请输入文件名';
+          if (value.includes('/')) return '文件名不能包含斜杠';
+          return undefined;
+        }
+      );
     },
     
-    // 打开文件
-    openFile(file: FileItem) {
-      if (file.type === 'directory') {
-        this.enterDirectory(file);
-        return;
-      }
-      
-      // 检查文件类型
-      const textExtensions = ['.txt', '.md', '.json', '.js', '.ts', '.html', '.css', '.xml', '.yaml', '.yml', '.ini', '.conf'];
-      const isTextFile = textExtensions.some(ext => file.name.endsWith(ext)) || file.size < 1024 * 100; // 小于100KB也认为是文本
-      
-      if (isTextFile) {
-        this.editFile(file);
-      } else {
-        showInfo(`打开文件: ${file.name}`);
-        // 这里可以添加其他文件类型的处理
-      }
-    },
-    
-    // 编辑文件 - 跳转到编辑器
-    editFile(file: FileItem) {
-      $falcon.navTo('fileEditor', { 
-        filePath: file.fullPath,
-        returnTo: 'fileManager',
-        returnPath: this.currentPath
-      });
-    },
-    
-    // 创建并编辑新文件
-    async createAndEditFile() {
-      this.operationType = 'newfile';
-      this.showOperationModal = true;
-    },
-    
-    // 执行创建文件
-    async executeCreateFile(filename: string) {
-      if (!filename.trim()) {
-        showWarning('文件名不能为空');
-        return;
-      }
-      
-      const fullPath = this.currentPath === '/' ? `/${filename}` : `${this.currentPath}/${filename}`;
-      
-      try {
-        showLoading();
-        await Shell.exec(`touch "${fullPath}"`);
-        showSuccess('文件创建成功');
-        
-        // 跳转到编辑器
-        $falcon.navTo('fileEditor', { 
-          filePath: fullPath,
-          returnTo: 'fileManager',
-          returnPath: this.currentPath
-        });
-        
-      } catch (error: any) {
-        console.error('创建文件失败:', error);
-        showError(`创建文件失败: ${error.message}`);
-      } finally {
-        hideLoading();
-        this.showOperationModal = false;
-      }
-    },
-    
-    // 创建目录
-    async createDirectory() {
-      this.operationType = 'newfolder';
-      this.showOperationModal = true;
-    },
-    
-    // 执行创建目录
-    async executeCreateDirectory(dirname: string) {
-      if (!dirname.trim()) {
-        showWarning('目录名不能为空');
-        return;
-      }
-      
-      const fullPath = this.currentPath === '/' ? `/${dirname}` : `${this.currentPath}/${dirname}`;
-      
-      try {
-        showLoading();
-        await Shell.exec(`mkdir -p "${fullPath}"`);
-        showSuccess('目录创建成功');
-        await this.refreshDirectory();
-      } catch (error: any) {
-        console.error('创建目录失败:', error);
-        showError(`创建目录失败: ${error.message}`);
-      } finally {
-        hideLoading();
-        this.showOperationModal = false;
-      }
-    },
-    
-    // 重命名文件/目录
-    renameFile(file: FileItem) {
-      this.operationType = 'rename';
-      this.operationData = { file };
-      this.showOperationModal = true;
-    },
-    
-    // 执行重命名
-    async executeRename(newName: string) {
-      const { file } = this.operationData;
-      
-      if (!newName.trim() || newName === file.name) {
-        this.showOperationModal = false;
-        return;
-      }
-      
-      const newPath = file.fullPath.substring(0, file.fullPath.lastIndexOf('/')) + '/' + newName;
-      
-      try {
-        showLoading();
-        await Shell.exec(`mv "${file.fullPath}" "${newPath}"`);
-        showSuccess('重命名成功');
-        await this.refreshDirectory();
-      } catch (error: any) {
-        console.error('重命名失败:', error);
-        showError(`重命名失败: ${error.message}`);
-      } finally {
-        hideLoading();
-        this.showOperationModal = false;
-      }
+    // 创建新目录
+    async createNewDirectory() {
+      openSoftKeyboard(
+        () => '',
+        async (dirName) => {
+          if (!dirName.trim()) {
+            showWarning('目录名不能为空');
+            return;
+          }
+          
+          try {
+            showLoading();
+            
+            const fullPath = this.currentPath === '/' 
+              ? `/${dirName}`
+              : `${this.currentPath}/${dirName}`;
+            
+            // 创建目录
+            await Shell.exec(`mkdir -p "${fullPath}"`);
+            
+            showSuccess(`目录创建成功: ${dirName}`);
+            await this.loadDirectory();
+            
+          } catch (error: any) {
+            console.error('创建目录失败:', error);
+            showError(`创建目录失败: ${error.message}`);
+          } finally {
+            hideLoading();
+          }
+        },
+        (value) => {
+          if (!value.trim()) return '请输入目录名';
+          if (value.includes('/')) return '目录名不能包含斜杠';
+          return undefined;
+        }
+      );
     },
     
     // 删除文件/目录
-    deleteFile(file: FileItem) {
-      this.operationType = 'delete';
-      this.operationData = { file };
-      this.showOperationModal = true;
-    },
-    
-    // 执行删除
-    async executeDelete() {
-      const { file } = this.operationData;
-      
-      try {
-        showLoading();
-        
-        if (file.type === 'directory') {
-          await Shell.exec(`rm -rf "${file.fullPath}"`);
-        } else {
-          await Shell.exec(`rm "${file.fullPath}"`);
+    async deleteItem(item: FileItem) {
+      this.showConfirmModal = true;
+      this.confirmTitle = '确认删除';
+      this.confirmMessage = `确定要删除 ${item.name} 吗？此操作不可恢复！`;
+      this.confirmCallback = async () => {
+        try {
+          showLoading();
+          
+          // 使用 rm -rf 删除文件和目录
+          await Shell.exec(`rm -rf "${item.fullPath}"`);
+          
+          showSuccess(`删除成功: ${item.name}`);
+          await this.loadDirectory();
+          
+        } catch (error: any) {
+          console.error('删除失败:', error);
+          showError(`删除失败: ${error.message}`);
+        } finally {
+          hideLoading();
+          this.showConfirmModal = false;
         }
-        
-        showSuccess('删除成功');
-        await this.refreshDirectory();
-      } catch (error: any) {
-        console.error('删除失败:', error);
-        showError(`删除失败: ${error.message}`);
-      } finally {
-        hideLoading();
-        this.showOperationModal = false;
-      }
+      };
     },
     
-    // 复制文件
-    copyFile(file: FileItem) {
-      showInfo('复制功能开发中...');
-    },
-    
-    // 移动文件
-    moveFile(file: FileItem) {
-      showInfo('移动功能开发中...');
-    },
-    
-    // 返回上级目录
-    goUp() {
-      if (this.currentPath === '/') return;
-      
-      const parts = this.currentPath.split('/').filter(p => p);
-      parts.pop();
-      const newPath = parts.length === 0 ? '/' : '/' + parts.join('/');
-      
-      this.navigateTo(newPath);
-    },
-    
-    // 导航到指定路径
-    async navigateTo(path: string) {
-      await this.loadDirectory(path);
-    },
-    
-    // 返回历史
-    goBack() {
-      if (this.historyIndex > 0) {
-        this.historyIndex--;
-        this.loadDirectory(this.history[this.historyIndex]);
-      }
-    },
-    
-    // 前进历史
-    goForward() {
-      if (this.historyIndex < this.history.length - 1) {
-        this.historyIndex++;
-        this.loadDirectory(this.history[this.historyIndex]);
-      }
-    },
-    
-    // 切换选择
-    toggleSelection(file: FileItem) {
-      file.selected = !file.selected;
-      
-      if (file.selected) {
-        if (!this.selectedFiles.find(f => f.id === file.id)) {
-          this.selectedFiles.push(file);
+    // 重命名文件/目录
+    async renameItem(item: FileItem) {
+      openSoftKeyboard(
+        () => item.name,
+        async (newName) => {
+          if (!newName.trim() || newName === item.name) {
+            if (newName === item.name) {
+              showInfo('文件名未改变');
+            }
+            return;
+          }
+          
+          try {
+            showLoading();
+            
+            const newPath = this.currentPath === '/' 
+              ? `/${newName}`
+              : `${this.currentPath}/${newName}`;
+            
+            // 重命名
+            await Shell.exec(`mv "${item.fullPath}" "${newPath}"`);
+            
+            showSuccess(`重命名成功: ${item.name} -> ${newName}`);
+            await this.loadDirectory();
+            
+          } catch (error: any) {
+            console.error('重命名失败:', error);
+            showError(`重命名失败: ${error.message}`);
+          } finally {
+            hideLoading();
+          }
+        },
+        (value) => {
+          if (!value.trim()) return '请输入新名称';
+          if (value.includes('/')) return '名称不能包含斜杠';
+          if (value === item.name) return '新名称不能与原名相同';
+          return undefined;
         }
-      } else {
-        const index = this.selectedFiles.findIndex(f => f.id === file.id);
-        if (index !== -1) {
-          this.selectedFiles.splice(index, 1);
-        }
-      }
-      
-      this.selectionMode = this.selectedFiles.length > 0;
+      );
     },
     
-    // 清空选择
-    clearSelection() {
-      this.files.forEach(file => {
-        file.selected = false;
-      });
-      this.selectedFiles = [];
-      this.selectionMode = false;
-    },
-    
-    // 全选/取消全选
-    toggleSelectAll() {
-      const allSelected = this.files.length > 0 && this.files.every(f => f.selected);
-      
-      this.files.forEach(file => {
-        file.selected = !allSelected;
-      });
-      
-      if (!allSelected) {
-        this.selectedFiles = [...this.files];
-      } else {
-        this.selectedFiles = [];
-      }
-      
-      this.selectionMode = this.selectedFiles.length > 0;
+    // 复制文件路径
+    copyFilePath(item: FileItem) {
+      // 这里可以集成到剪贴板功能
+      showInfo(`文件路径已复制: ${item.fullPath}`);
+      // 在实际应用中，可以将路径保存到全局变量或使用系统剪贴板
     },
     
     // 显示上下文菜单
-    showContextMenu(event: TouchEvent | MouseEvent, file?: FileItem) {
-      event.preventDefault();
-      event.stopPropagation();
+    showContextMenu(event: any, item: FileItem) {
+      this.selectedFile = item;
+      this.contextMenuX = event.x || 100;
+      this.contextMenuY = event.y || 100;
+      this.showContextMenu = true;
       
-      // 获取触摸位置
-      let x = 0, y = 0;
-      if ('touches' in event && event.touches.length > 0) {
-        x = event.touches[0].clientX;
-        y = event.touches[0].clientY;
-      } else if ('clientX' in event) {
-        x = event.clientX;
-        y = event.clientY;
-      }
+      // 点击其他地方关闭菜单
+      setTimeout(() => {
+        const handler = () => {
+          this.showContextMenu = false;
+          document.removeEventListener('click', handler);
+        };
+        document.addEventListener('click', handler);
+      }, 100);
+    },
+    
+    // 执行上下文菜单操作
+    async executeContextMenu(action: string) {
+      if (!this.selectedFile) return;
       
-      this.menuPosition = { x, y, file };
-      this.showMenu = true;
-    },
-    
-    // 隐藏菜单
-    hideMenu() {
-      this.showMenu = false;
-    },
-    
-    // 格式化文件大小
-    formatFileSize(bytes: number): string {
-      if (bytes === 0) return '0 B';
+      this.showContextMenu = false;
       
-      const k = 1024;
-      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-      const i = Math.floor(Math.log(bytes) / Math.log(k));
-      
-      const size = bytes / Math.pow(k, i);
-      return size.toFixed(i > 0 ? 1 : 0) + ' ' + sizes[i];
-    },
-    
-    // 获取文件图标
-    getFileIcon(file: FileItem): string {
-      switch (file.type) {
-        case 'directory': return '📁';
-        case 'executable': return '⚡';
-        case 'link': return '🔗';
-        default: return '📄';
-      }
-    },
-    
-    // 获取文件类型文本
-    getFileTypeText(file: FileItem): string {
-      switch (file.type) {
-        case 'directory': return '目录';
-        case 'executable': return '可执行';
-        case 'link': return '链接';
-        default: return '文件';
-      }
-    },
-    
-    // 处理编辑器保存事件
-    handleFileSaved(event: { data: string }) {
-      // 收到文件保存事件，刷新当前目录
-      this.refreshDirectory();
-    },
-    
-    // 处理操作确认
-    handleOperationConfirm() {
-      switch (this.operationType) {
-        case 'newfile':
-          this.executeCreateFile(this.operationData.newName || '');
-          break;
-        case 'newfolder':
-          this.executeCreateDirectory(this.operationData.newName || '');
+      switch (action) {
+        case 'open':
+          await this.openItem(this.selectedFile);
           break;
         case 'rename':
-          this.executeRename(this.operationData.newName || '');
+          await this.renameItem(this.selectedFile);
           break;
         case 'delete':
-          this.executeDelete();
+          await this.deleteItem(this.selectedFile);
+          break;
+        case 'copy_path':
+          this.copyFilePath(this.selectedFile);
+          break;
+        case 'properties':
+          this.showFileProperties(this.selectedFile);
           break;
       }
+      
+      this.selectedFile = null;
     },
     
-    // 处理操作取消
-    handleOperationCancel() {
-      this.showOperationModal = false;
-      this.operationType = '';
-      this.operationData = {};
+    // 显示文件属性
+    showFileProperties(item: FileItem) {
+      const properties = `
+文件名称: ${item.name}
+文件类型: ${item.type === 'directory' ? '目录' : '文件'}
+文件大小: ${item.sizeFormatted}
+修改时间: ${item.modifiedTimeFormatted}
+权限设置: ${item.permissions}
+完整路径: ${item.fullPath}
+隐藏文件: ${item.isHidden ? '是' : '否'}
+可执行文件: ${item.isExecutable ? '是' : '否'}
+      `.trim();
+      
+      showInfo(properties);
+    },
+    
+    // 切换显示隐藏文件
+    toggleHiddenFiles() {
+      this.showHiddenFiles = !this.showHiddenFiles;
+      this.$forceUpdate();
+    },
+    
+    // 搜索文件
+    searchFiles() {
+      openSoftKeyboard(
+        () => this.searchKeyword,
+        (value) => {
+          this.searchKeyword = value;
+          this.$forceUpdate();
+        }
+      );
+    },
+    
+    // 清除搜索
+    clearSearch() {
+      this.searchKeyword = '';
+      this.$forceUpdate();
+    },
+    
+    // 格式化大小
+    formatSize(bytes: number): string {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+    },
+    
+    // 获取文件图标类
+    getFileIconClass(file: FileItem): string {
+      let baseClass = 'file-icon';
+      
+      if (file.type === 'directory') {
+        return `${baseClass} file-icon-folder`;
+      }
+      
+      // 根据文件扩展名设置图标
+      if (file.name.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) {
+        return `${baseClass} file-icon-image`;
+      }
+      
+      if (file.name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm)$/i)) {
+        return `${baseClass} file-icon-text`;
+      }
+      
+      if (file.isExecutable || file.name.match(/\.(sh|bash|amr|apk|bin|so)$/i)) {
+        return `${baseClass} file-icon-executable`;
+      }
+      
+      return `${baseClass} file-icon-file`;
+    },
+    
+    // 处理文件保存事件
+    handleFileSaved(e: { data: string }) {
+      console.log('收到文件保存事件:', e.data);
+      // 刷新当前目录
+      this.loadDirectory();
     },
     
     // 处理返回键
     handleBackPress() {
-      if (this.showMenu) {
-        this.hideMenu();
+      if (this.showContextMenu || this.showConfirmModal) {
+        this.showContextMenu = false;
+        this.showConfirmModal = false;
         return;
       }
       
-      if (this.showOperationModal) {
-        this.handleOperationCancel();
-        return;
-      }
-      
-      if (this.selectionMode) {
-        this.clearSelection();
-        return;
-      }
-      
-      if (this.currentPath !== '/') {
-        this.goUp();
+      if (this.canGoBack) {
+        this.goBack();
         return;
       }
       
       this.$page.finish();
-    }
-  }
+    },
+    
+    // 确认对话框相关
+    executeConfirmAction() {
+      if (this.confirmCallback) {
+        this.confirmCallback();
+      }
+      this.showConfirmModal = false;
+      this.confirmCallback = null;
+    },
+    
+    cancelConfirmAction() {
+      this.showConfirmModal = false;
+      this.confirmCallback = null;
+    },
+  },
 });
-
-export default fileManager;
