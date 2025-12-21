@@ -45,7 +45,7 @@
         <text @click="createDirectory" class="toolbar-btn-small btn-success-small">新建目录</text>
       </div>
       <div class="toolbar-row">
-        <text @click="toggleSelectAll" class="toolbar-btn-small btn-warning-small">{{ files.length > 0 && files.every(f => f.selected) ? '取消全选' : '全选' }}</text>
+        <text @click="toggleSelectAll" class="toolbar-btn-small btn-warning-small">{{ selectAllText }}</text>
         <text @click="toggleSort('name')" class="toolbar-btn-small btn-info-small">名称{{ sortField === 'name' ? (sortAsc ? '↑' : '↓') : '' }}</text>
         <text @click="toggleSort('size')" class="toolbar-btn-small btn-info-small">大小{{ sortField === 'size' ? (sortAsc ? '↑' : '↓') : '' }}</text>
         <text @click="toggleSort('modified')" class="toolbar-btn-small btn-info-small">时间{{ sortField === 'modified' ? (sortAsc ? '↑' : '↓') : '' }}</text>
@@ -76,9 +76,9 @@
         <!-- 文件列表 -->
         <div v-else v-for="file in filteredFiles" :key="file.id"
              @click="selectionMode ? toggleSelection(file) : openFile(file)"
-             @touchstart="(e) => handleFileTouchStart(e, file)"
-             @touchend="(e) => handleFileTouchEnd(e, file)"
-             @contextmenu="(e) => showContextMenu(e, file)"
+             @touchstart="handleFileTouchStart($event, file)"
+             @touchend="handleFileTouchEnd($event, file)"
+             @contextmenu="showContextMenu($event, file)"
              :class="'file-item-compact' + (file.selected ? ' selected' : '')">
           
           <!-- 选择框 -->
@@ -122,13 +122,13 @@
     
     <!-- 上下文菜单 -->
     <div v-if="showMenu" :style="{ left: menuPosition.x + 'px', top: menuPosition.y + 'px' }" class="context-menu">
-      <div v-if="menuPosition.file" class="menu-item" @click="() => menuPosition.file && openFile(menuPosition.file)">打开</div>
-      <div v-if="menuPosition.file && menuPosition.file.type !== 'directory'" class="menu-item" @click="() => menuPosition.file && editFile(menuPosition.file)">编辑</div>
-      <div v-if="menuPosition.file" class="menu-item" @click="() => menuPosition.file && renameFile(menuPosition.file)">重命名</div>
-      <div v-if="menuPosition.file" class="menu-item" @click="() => menuPosition.file && deleteFile(menuPosition.file)">删除</div>
+      <div v-if="menuPosition && menuPosition.file" class="menu-item" @click="openFileSafe(menuPosition.file)">打开</div>
+      <div v-if="menuPosition && menuPosition.file && menuPosition.file.type !== 'directory'" class="menu-item" @click="editFileSafe(menuPosition.file)">编辑</div>
+      <div v-if="menuPosition && menuPosition.file" class="menu-item" @click="renameFileSafe(menuPosition.file)">重命名</div>
+      <div v-if="menuPosition && menuPosition.file" class="menu-item" @click="deleteFileSafe(menuPosition.file)">删除</div>
       <div class="menu-item" @click="createAndEditFile">新建文件</div>
       <div class="menu-item" @click="createDirectory">新建目录</div>
-      <div class="menu-item" @click="toggleSelectAll">{{ files.length > 0 && files.every(f => f.selected) ? '取消全选' : '全选' }}</div>
+      <div class="menu-item" @click="toggleSelectAll">{{ selectAllText }}</div>
       <div class="menu-item" @click="hideMenu">关闭</div>
     </div>
     
@@ -152,7 +152,7 @@
       
       <div v-else-if="operationType === 'delete'">
         <text style="color: #ffffff; text-align: center; margin: 10px 0;">
-          确定要删除 "{{ operationData.file?.name }}" 吗？
+          确定要删除 "{{ getFileNameToDelete() }}" 吗？
         </text>
         <text style="color: #ffc107; font-size: 12px; text-align: center;">
           此操作无法撤销！
@@ -187,6 +187,13 @@ export default {
   components: {
     Loading,
     ToastMessage
+  },
+  computed: {
+    // 计算全选文本
+    selectAllText() {
+      const allSelected = this.files.length > 0 && this.files.every(f => f.selected);
+      return allSelected ? '取消全选' : '全选';
+    }
   },
   methods: {
     handleFileTouchStart(e, file) {
@@ -244,6 +251,14 @@ export default {
     
     deleteFileSafe(file) {
       if (file) this.deleteFile(file);
+    },
+    
+    // 获取要删除的文件名
+    getFileNameToDelete() {
+      if (!this.operationData || !this.operationData.file) {
+        return '';
+      }
+      return this.operationData.file.name || '';
     }
   },
   data() {
