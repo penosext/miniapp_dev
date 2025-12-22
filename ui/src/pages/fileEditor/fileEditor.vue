@@ -1,5 +1,5 @@
 <!--
- Copyright (C) 2025 Langning Chen
+ Copyright (C) 2025 wyxdlz54188
  
  This file is part of miniapp.
  
@@ -19,16 +19,7 @@
 
 <template>
   <div class="editor-container">
-    <!-- 标题栏 -->
-    <div class="editor-header">
-      <text class="header-title">{{ fileName }}</text>
-      <div class="header-actions">
-        <text v-if="isModified" style="color: #ffc107; font-size: 12px;">已修改</text>
-        <text @click="exitEditor" class="toolbar-btn toolbar-btn-danger">关闭</text>
-      </div>
-    </div>
-    
-    <!-- 编辑区域 -->
+    <!-- 编辑区域 - 不再有标题栏 -->
     <div class="editor-content">
       <!-- 行号 -->
       <scroller class="line-numbers-scroller" scroll-direction="vertical">
@@ -54,24 +45,87 @@
       </scroller>
     </div>
     
-    <!-- 状态栏 -->
-    <div class="editor-status">
-      <text class="status-item status-cursor">{{ fileStats }}</text>
-      <text class="status-item status-size">{{ getFileInfo() }}</text>
-      <text v-if="isModified" class="status-item" style="color: #ffc107;">已修改</text>
-    </div>
-    
-    <!-- 工具栏 -->
+    <!-- 功能栏 - 左右滑动式 -->
     <div class="editor-toolbar">
-      <text @click="openKeyboard" class="toolbar-btn">键盘</text>
-      <text @click="saveFile" :class="'toolbar-btn' + (canSave ? ' toolbar-btn-success' : '')" 
-            :style="{ opacity: canSave ? 1 : 0.5 }">保存</text>
-      <text @click="showSaveAsDialog" class="toolbar-btn toolbar-btn-warning">另存为</text>
-      <text @click="clearContent" class="toolbar-btn toolbar-btn-danger">清空</text>
-      <text @click="showFindDialog" class="toolbar-btn">查找</text>
-      <text @click="findPrev" class="toolbar-btn">上一条</text>
-      <text @click="findNext" class="toolbar-btn">下一条</text>
-      <text @click="showGoToDialog" class="toolbar-btn">跳转行</text>
+      <scroller class="toolbar-scroller" scroll-direction="horizontal" :show-scrollbar="true">
+        <!-- 文件信息 -->
+        <div class="toolbar-item">
+          <text class="file-name-display">{{ displayFileName }}</text>
+        </div>
+        
+        <!-- 分隔符 -->
+        <div class="toolbar-separator"></div>
+        
+        <!-- 状态信息 -->
+        <div class="toolbar-item">
+          <text class="toolbar-info toolbar-info-primary">{{ cursorPosition.row + 1 }}:{{ cursorPosition.col + 1 }}</text>
+        </div>
+        
+        <div class="toolbar-item">
+          <text class="toolbar-info">行 {{ totalLines }}</text>
+        </div>
+        
+        <div class="toolbar-item">
+          <text class="toolbar-info">字 {{ totalChars }}</text>
+        </div>
+        
+        <div v-if="!fileExists" class="toolbar-item">
+          <text class="toolbar-info toolbar-info-warning">新文件</text>
+        </div>
+        
+        <div v-if="isModified" class="toolbar-item">
+          <text class="toolbar-info toolbar-info-warning">已修改</text>
+        </div>
+        
+        <!-- 分隔符 -->
+        <div class="toolbar-separator"></div>
+        
+        <!-- 文件操作按钮 -->
+        <div class="toolbar-item">
+          <text @click="openKeyboard" class="toolbar-btn toolbar-btn-primary">键盘</text>
+        </div>
+        
+        <div class="toolbar-item">
+          <text @click="saveFile" :class="'toolbar-btn' + (canSave ? ' toolbar-btn-success' : '')" 
+                :style="{ opacity: canSave ? 1 : 0.5 }">保存</text>
+        </div>
+        
+        <div class="toolbar-item">
+          <text @click="showSaveAsDialog" class="toolbar-btn toolbar-btn-warning">另存为</text>
+        </div>
+        
+        <div class="toolbar-item">
+          <text @click="clearContent" class="toolbar-btn toolbar-btn-danger">清空</text>
+        </div>
+        
+        <!-- 分隔符 -->
+        <div class="toolbar-separator"></div>
+        
+        <!-- 编辑功能按钮 -->
+        <div class="toolbar-item">
+          <text @click="showFindDialog" class="toolbar-btn toolbar-btn-info">查找</text>
+        </div>
+        
+        <div class="toolbar-item">
+          <text @click="findPrev" class="toolbar-btn toolbar-btn-info">上一条</text>
+        </div>
+        
+        <div class="toolbar-item">
+          <text @click="findNext" class="toolbar-btn toolbar-btn-info">下一条</text>
+        </div>
+        
+        <div class="toolbar-item">
+          <text @click="showGoToDialog" class="toolbar-btn toolbar-btn-info">跳转行</text>
+        </div>
+        
+        <!-- 分隔符 -->
+        <div class="toolbar-separator"></div>
+        
+        <!-- 退出按钮 -->
+        <div class="toolbar-item">
+          <text @click="exitEditor" class="toolbar-btn toolbar-btn-danger">退出</text>
+        </div>
+      </scroller>
     </div>
     
     <!-- 查找对话框 -->

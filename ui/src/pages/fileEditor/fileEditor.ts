@@ -1,4 +1,4 @@
-// Copyright (C) 2025 Langning Chen
+// Copyright (C) 2025 wyxdlz54188
 // 
 // This file is part of miniapp.
 // 
@@ -111,12 +111,16 @@ const fileEditor = defineComponent({
       return Array.from({ length: this.totalLines }, (_, i) => i + 1);
     },
     
-    fileStats(): string {
-      return `行: ${this.cursorPosition.row + 1}/${this.totalLines} | 列: ${this.cursorPosition.col + 1} | 字符: ${this.totalChars}`;
-    },
-    
     canSave(): boolean {
       return this.shellInitialized && (this.isNewFile || this.fileContent !== this.originalContent);
+    },
+    
+    // 添加显示文件名的计算属性
+    displayFileName(): string {
+      if (!this.filePath) return '新文件.txt';
+      const parts = this.filePath.split('/');
+      const fileName = parts[parts.length - 1] || '未命名文件';
+      return this.isModified ? `${fileName} *` : fileName;
     }
   },
 
