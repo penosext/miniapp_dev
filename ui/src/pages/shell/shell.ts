@@ -103,7 +103,8 @@ export default defineComponent({
         // 获取初始目录
         try {
           const result = await Shell.exec('pwd');
-          this.currentDir = result.trim();
+          // 确保结果是字符串
+          this.currentDir = this.ensureString(result).trim();
         } catch (error: any) {
           this.currentDir = '/';
         }
@@ -120,12 +121,50 @@ export default defineComponent({
       }
     },
     
+    // 确保字符串的安全转换函数
+    ensureString(value: any): string {
+      if (value === null || value === undefined) {
+        return '';
+      }
+      
+      // 如果是字符串，直接返回
+      if (typeof value === 'string') {
+        return value;
+      }
+      
+      // 如果有toString方法，使用它
+      if (value.toString && typeof value.toString === 'function') {
+        try {
+          const str = value.toString();
+          // 检查toString是否返回了[object Object]
+          if (str === '[object Object]') {
+            // 尝试JSON.stringify
+            try {
+              return JSON.stringify(value);
+            } catch (e) {
+              return '{}';
+            }
+          }
+          return str;
+        } catch (e) {
+          return '';
+        }
+      }
+      
+      // 最后尝试JSON.stringify
+      try {
+        return JSON.stringify(value);
+      } catch (e) {
+        return '';
+      }
+    },
+    
     // 添加终端行
-    addTerminalLine(type: TerminalLine['type'], content: string) {
+    addTerminalLine(type: TerminalLine['type'], content: any) {
       const timestamp = Date.now();
       
       // 确保内容是字符串，避免显示[object Object]
-      const safeContent = typeof content === 'string' ? content : String(content);
+      const safeContent = this.ensureString(content);
       
       this.terminalLines.push({
         id: `line_${timestamp}_${Math.random().toString(36).substr(2, 9)}`,
@@ -274,14 +313,17 @@ export default defineComponent({
         const fullCommand = `cd "${this.currentDir}" && ${command}`;
         const result = await Shell.exec(fullCommand);
         
+        // 确保结果是字符串
+        const safeResult = this.ensureString(result);
+        
         // 显示结果
-        if (result && result.trim()) {
-          this.addTerminalLine('output', result);
+        if (safeResult && safeResult.trim()) {
+          this.addTerminalLine('output', safeResult);
         }
         
       } catch (error: any) {
         console.error('命令执行失败:', error);
-        this.addTerminalLine('error', `执行失败: ${error.message || '未知错误'}`);
+        this.addTerminalLine('error', `执行失败: ${this.ensureString(error.message || '未知错误')}`);
       } finally {
         this.isExecuting = false;
       }
@@ -313,13 +355,15 @@ export default defineComponent({
         
         // 执行cd命令并获取新目录
         const result = await Shell.exec(cdCommand);
-        const newDir = result.trim();
+        // 确保结果是字符串
+        const safeResult = this.ensureString(result);
+        const newDir = safeResult.trim();
         
         // 更新当前目录
         this.currentDir = newDir;
         
       } catch (error: any) {
-        this.addTerminalLine('error', `cd: ${error.message || '无法切换目录'}`);
+        this.addTerminalLine('error', `cd: ${this.ensureString(error.message || '无法切换目录')}`);
       }
     },
     
@@ -341,9 +385,13 @@ export default defineComponent({
       for (const test of testCommands) {
         try {
           const result = await Shell.exec(`cd "${this.currentDir}" && ${test.cmd}`);
-          this.addTerminalLine('output', result.trim());
+          // 确保结果是字符串
+          const safeResult = this.ensureString(result);
+          if (safeResult.trim()) {
+            this.addTerminalLine('output', safeResult.trim());
+          }
         } catch (error: any) {
-          this.addTerminalLine('error', `测试失败: ${error.message}`);
+          this.addTerminalLine('error', `测试失败: ${this.ensureString(error.message)}`);
         }
         await this.delay(100);
       }
@@ -466,16 +514,16 @@ vi <文件>     编辑文本文件
       }
     },
     
-    // 打开软键盘 - 修复可能显示[object Object]的问题
+    // 打开软键盘 - 彻底修复可能显示[object Object]的问题
     openKeyboard() {
-      // 确保获取的值是字符串
-      const currentValue = typeof this.inputText === 'string' ? this.inputText : String(this.inputText || '');
+      // 直接使用字符串值
+      const currentValue = this.inputText || '';
       
       openSoftKeyboard(
         () => currentValue,
         (value) => {
-          // 确保设置的值是字符串
-          this.inputText = typeof value === 'string' ? value : String(value || '');
+          // 使用确保字符串函数处理返回值
+          this.inputText = this.ensureString(value);
           this.$forceUpdate();
         }
       );
