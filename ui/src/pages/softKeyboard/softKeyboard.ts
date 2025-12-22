@@ -331,17 +331,7 @@ const softKeyboard = defineComponent({
 
     methods: {
         close() {
-            try {
-                // 确保编辑器已初始化且包含有效内容
-                const content = this.editor?.textBuffer.data.join('\n') || '';
-                // 确保返回的是字符串，防止 [object Object] 问题
-                const dataToSend = typeof content === 'string' ? content : String(content);
-                console.log('SoftKeyboard closing with content:', dataToSend);
-                $falcon.trigger<string>('softKeyboard', dataToSend);
-            } catch (error) {
-                console.error('Error in soft keyboard close:', error);
-                $falcon.trigger<string>('softKeyboard', '');
-            }
+            $falcon.trigger<string>('softKeyboard', this.editor?.textBuffer.data.join('\n') || '');
             this.$page.finish();
         },
         clicked(key: string) {
@@ -375,8 +365,8 @@ const softKeyboard = defineComponent({
                 [')', '）'],
                 ['[', '【'],
                 [']', '】'],
-                ['"', '""'],
-                ["'", "''"],
+                ['"', '“”'],
+                ["'", "‘’"],
                 ['<', '《'],
                 ['>', '》'],
                 ['\\', '、'],
