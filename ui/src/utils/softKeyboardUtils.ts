@@ -1,45 +1,65 @@
 // Copyright (C) 2025 Langning Chen
+// 
+// This file is part of miniapp.
+// 
+// miniapp is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// miniapp is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
 
-type Getter = () => string;
-type Setter = (value: string) => void;
+import { showWarning } from '../components/ToastMessage';
 
 /**
- * 关键：把软键盘返回的任意值规整为 string
- * 不改变任何协议结构
+ * 【新增】将软键盘返回的数据安全地转换为 string
+ * 只为修复 [object Object]，不改变任何原有流程
  */
-function normalizeKeyboardInput(input: any): string {
-    if (typeof input === 'string') return input;
-
-    if (input && typeof input === 'object') {
-        if (typeof input.value === 'string') return input.value;
-        if (typeof input.text === 'string') return input.text;
-        if (typeof input.key === 'string') return input.key;
+function normalizeKeyboardData(data: any): string {
+    if (typeof data === 'string') {
+        return data;
     }
 
+    if (data && typeof data === 'object') {
+        if (typeof data.value === 'string') return data.value;
+        if (typeof data.text === 'string') return data.text;
+        if (typeof data.key === 'string') return data.key;
+    }
+
+    // 保底，避免 String(object)
     return '';
 }
 
-export function openSoftKeyboard(getter: Getter, setter: Setter) {
-    // ⚠️ 这里的 trigger 名、参数结构，必须和你原来的一模一样
-    $falcon.trigger('open_soft_keyboard', {
-        value: getter(),
+export function openSoftKeyboard(
+    get: () => string,
+    set: (value: string) => void,
+    validate?: (value: string) => string | undefined
+) {
+    const currentValue = get();
+    $falcon.navTo('softKeyboard', { data: currentValue });
 
-        // ✅ 只在这里做“最小侵入式修改”
-        onInput: (raw: any) => {
-            const value = normalizeKeyboardInput(raw);
-            setter(value);
-        },
+    const handler = (e: { data: any }) => {
+        // ⭐【唯一修复点】
+        const newValue = normalizeKeyboardData(e.data);
 
-        // 如果你原来就有 delete
-        onDelete: () => {
-            const current = getter();
-            setter(current.slice(0, -1));
-        },
-
-        // 如果你原来就有 confirm
-        onConfirm: (raw: any) => {
-            const value = normalizeKeyboardInput(raw);
-            setter(value);
+        if (validate) {
+            const validationError = validate(newValue);
+            if (validationError) {
+                showWarning(validationError);
+                $falcon.off('softKeyboard', handler);
+                return;
+            }
         }
-    });
+
+        set(newValue);
+        $falcon.off('softKeyboard', handler);
+    };
+
+    $falcon.on('softKeyboard', handler);
 }
