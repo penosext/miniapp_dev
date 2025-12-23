@@ -4,25 +4,7 @@ import { showError, showSuccess, showWarning, showInfo } from '../../components/
 import { hideLoading, showLoading } from '../../components/Loading';
 import { openSoftKeyboard } from '../../utils/softKeyboardUtils';
 import { formatTime } from '../../utils/timeUtils';
-
-export type FileManagerOptions = {
-  path?: string;
-  refresh?: boolean;
-};
-
-export interface FileItem {
-  name: string;
-  type: 'file' | 'directory' | 'link' | 'unknown';
-  size: number;
-  sizeFormatted: string;
-  modifiedTime: number;
-  modifiedTimeFormatted: string;
-  permissions: string;
-  isHidden: boolean;
-  fullPath: string;
-  icon: string;
-  isExecutable: boolean;
-}
+import type { FileManagerOptions, FileItem } from '../../types/fileManager';
 
 export default defineComponent({
   data() {
@@ -56,14 +38,13 @@ export default defineComponent({
     const options = this.$page.loadOptions;
     this.currentPath = options.path || '/';
     this.$page.$npage.setSupportBack(true);
-    this.$page.$npage.on("backpressed", this.handleBackPress);
+    this.$page.$npage.on('backpressed', this.handleBackPress);
     $falcon.on('file_saved', this.handleFileSaved);
-
     await this.initializeShell();
   },
 
   beforeDestroy() {
-    this.$page.$npage.off("backpressed", this.handleBackPress);
+    this.$page.$npage.off('backpressed', this.handleBackPress);
     $falcon.off('file_saved', this.handleFileSaved);
   },
 
@@ -72,8 +53,8 @@ export default defineComponent({
       let files = [...this.fileList];
       if (!this.showHiddenFiles) files = files.filter(f => !f.isHidden);
       if (this.searchKeyword) {
-        const kw = this.searchKeyword.toLowerCase();
-        files = files.filter(f => f.name.toLowerCase().includes(kw));
+        const keyword = this.searchKeyword.toLowerCase();
+        files = files.filter(f => f.name.toLowerCase().includes(keyword));
       }
       files.sort((a, b) => {
         if (a.type === 'directory' && b.type !== 'directory') return -1;
@@ -89,7 +70,7 @@ export default defineComponent({
 
     parentPath(): string {
       if (this.currentPath === '/') return '/';
-      const parts = this.currentPath.split('/').filter(p => p);
+      const parts = this.currentPath.split('/').filter(Boolean);
       if (parts.length === 0) return '/';
       parts.pop();
       return parts.length > 0 ? '/' + parts.join('/') : '/';
@@ -99,57 +80,59 @@ export default defineComponent({
   methods: {
     async initializeShell() {
       try {
+        if (!Shell) throw new Error('Shell对象未定义');
+        if (typeof Shell.initialize !== 'function') throw new Error('Shell.initialize方法不存在');
         await Shell.initialize();
         this.shellInitialized = true;
         await this.loadDirectory();
-      } catch (error: any) {
-        console.error('Shell模块初始化失败:', error);
-        showError(`Shell初始化失败: ${error.message}`);
-        this.shellInitialized = false;
+      } catch (e: any) {
+        showError(`Shell模块初始化失败: ${e.message}`);
       }
     },
 
     async loadDirectory() {
-      if (!this.shellInitialized) { showError('Shell未初始化'); return; }
+      if (!this.shellInitialized || !Shell) return showError('Shell模块未初始化');
       try {
         this.isLoading = true;
         showLoading();
+
         let path = this.currentPath;
         if (!path.startsWith('/')) path = '/' + path;
         if (path !== '/' && path.endsWith('/')) path = path.slice(0, -1);
         this.currentPath = path;
 
         const cmd = `cd "${path}" && ls -la --time-style=+%s 2>/dev/null || ls -la 2>/dev/null`;
-        let result = '';
-        try { result = await Shell.exec(cmd); } catch { result = await Shell.exec(`cd "${path}" && ls -la`); }
+        const result = await Shell.exec(cmd);
 
-        if (!result || result.trim() === '') { this.fileList = []; return; }
+        if (!result.trim()) {
+          this.fileList = [];
+          return;
+        }
 
         const lines = result.trim().split('\n').slice(1);
         const files: FileItem[] = [];
 
         for (const line of lines) {
-          const file = this.parseFileLineSimple(line);
+          const file = this.parseFileLine(line);
           if (file) files.push(file);
         }
 
         this.fileList = files;
         this.updateStats();
-      } catch (error: any) {
-        console.error('加载目录失败:', error);
-        showError(`加载目录失败: ${error.message}`);
+      } catch (e: any) {
+        showError(`加载目录失败: ${e.message}`);
         this.fileList = [];
-        if (this.currentPath !== '/') { this.currentPath = '/'; await this.loadDirectory(); }
       } finally {
         this.isLoading = false;
         hideLoading();
       }
     },
 
-    parseFileLineSimple(line: string): FileItem | null {
+    parseFileLine(line: string): FileItem | null {
       if (!line.trim()) return null;
       const parts = line.trim().split(/\s+/);
       if (parts.length < 6) return null;
+
       const permissions = parts[0];
       const name = parts[parts.length - 1];
       if (name === '.' || name === '..') return null;
@@ -158,78 +141,72 @@ export default defineComponent({
       let type: 'file' | 'directory' | 'link' | 'unknown' = 'unknown';
       let icon = '?';
 
-      if (typeChar === '-') {
-        type = 'file';
-        if (name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|cfg|log|conf|ini|yml|yaml)$/i)) icon = '文';
-        else if (name.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) icon = '图';
-        else if (name.match(/\.(amr|apk|bin|so|exe)$/i)) icon = '执';
-        else icon = '文';
-      } else if (typeChar === 'd') { type = 'directory'; icon = 'Dir'; }
-      else if (typeChar === 'l') { type = 'link'; icon = 'Lnk'; }
+      if (typeChar === '-') type = 'file';
+      else if (typeChar === 'd') type = 'directory';
+      else if (typeChar === 'l') type = 'link';
+
+      if (type === 'directory') icon = 'Dir';
+      else if (type === 'link') icon = 'Lnk';
+      else if (name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash|cfg)$/i)) icon = '文';
+      else if (name.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) icon = '图';
+      else if (name.match(/\.(amr|apk|bin|so|exe)$/i)) icon = '执';
+      else icon = '文';
 
       let size = 0;
       let sizeFormatted = type === 'directory' ? '<DIR>' : '0 B';
-      if (type === 'file') {
-        for (let i = 1; i < parts.length - 1; i++) {
-          const num = parseInt(parts[i], 10);
-          if (!isNaN(num) && num > 0 && num < 1e9) { size = num; break; }
+      for (let i = 1; i < parts.length - 1; i++) {
+        const num = parseInt(parts[i], 10);
+        if (!isNaN(num) && num > 0 && num < 1e9) {
+          size = num;
+          break;
         }
+      }
+      if (type !== 'directory') {
         if (size < 1024) sizeFormatted = `${size} B`;
         else if (size < 1024 * 1024) sizeFormatted = `${(size / 1024).toFixed(1)} KB`;
-        else if (size < 1024 * 1024 * 1024) sizeFormatted = `${(size / (1024*1024)).toFixed(1)} MB`;
-        else sizeFormatted = `${(size / (1024*1024*1024)).toFixed(1)} GB`;
+        else if (size < 1024 * 1024 * 1024) sizeFormatted = `${(size / (1024 * 1024)).toFixed(1)} MB`;
+        else sizeFormatted = `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
       }
 
       const isHidden = name.startsWith('.');
       const isExecutable = permissions.includes('x');
+
       const fullPath = this.currentPath === '/' ? `/${name}` : `${this.currentPath}/${name}`;
       const modifiedTime = Math.floor(Date.now() / 1000);
 
       return {
-        name, type, size, sizeFormatted, modifiedTime,
+        name,
+        type,
+        size,
+        sizeFormatted,
+        modifiedTime,
         modifiedTimeFormatted: formatTime(modifiedTime),
-        permissions, isHidden, fullPath, icon, isExecutable
+        permissions,
+        isHidden,
+        fullPath,
+        icon,
+        isExecutable,
       };
     },
 
-    updateStats() {
-      this.totalFiles = this.fileList.length;
-      this.totalSize = this.fileList.filter(f => f.type === 'file').reduce((sum, f) => sum+f.size, 0);
-      this.selectedCount = 0;
-    },
-
     async openItem(item: FileItem) {
-      if (item.type === 'directory') { this.currentPath = item.fullPath; await this.loadDirectory(); return; }
-      await this.openFile(item);
-    },
+      if (item.type === 'directory') {
+        this.currentPath = item.fullPath;
+        await this.loadDirectory();
+        return;
+      }
 
-    async openFile(file: FileItem) {
-      try {
-        const exists = await Shell.exec(`test -f "${file.fullPath.replace(/"/g,'\\"')}" && echo "exists" || echo "not exists"`);
-        if (exists.trim() === 'not exists') { showError(`文件不存在: ${file.fullPath}`); return; }
+      const textFileRegex = /\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash|cfg)$/i;
+      if (item.type === 'link' || textFileRegex.test(item.name)) {
+        $falcon.navTo('fileEditor', {
+          filePath: item.fullPath,
+          returnTo: 'fileManager',
+          returnPath: this.currentPath,
+        });
+        return;
+      }
 
-        const isText = file.name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|cfg|log|conf|ini|yml|yaml)$/i);
-        if (isText) {
-          $falcon.navTo('fileEditor', { filePath: file.fullPath, returnTo: 'fileManager', returnPath: this.currentPath });
-        } else showInfo(`打开文件: ${file.name} (暂不支持此类型)`);
-      } catch (error: any) { showError(`打开文件失败: ${error.message}`); }
-    },
-
-    async renameItem(item: FileItem) {
-      openSoftKeyboard(
-        () => item.name,
-        async (newName) => {
-          if (!newName.trim() || newName === item.name) { showInfo('名称未改变'); return; }
-          try {
-            showLoading();
-            const newPath = this.currentPath === '/' ? `/${newName}` : `${this.currentPath}/${newName}`;
-            await Shell.exec(`mv "${item.fullPath.replace(/"/g,'\\"')}" "${newPath.replace(/"/g,'\\"')}"`);
-            showSuccess(`重命名成功: ${item.name} -> ${newName}`);
-            await this.loadDirectory();
-          } catch (e: any) { showError(`重命名失败: ${e.message}`); } finally { hideLoading(); }
-        },
-        (v) => { if (!v.trim()) return '请输入名称'; if (v.includes('/')) return '名称不能包含斜杠'; return undefined; }
-      );
+      showInfo(`打开文件: ${item.name} (暂不支持此类型)`);
     },
 
     async deleteItem(item: FileItem) {
@@ -239,45 +216,124 @@ export default defineComponent({
       this.confirmCallback = async () => {
         try {
           showLoading();
-          await Shell.exec(`rm -rf "${item.fullPath.replace(/"/g,'\\"')}"`);
+          await Shell.exec(`rm -rf "${item.fullPath}"`);
           showSuccess(`删除成功: ${item.name}`);
           await this.loadDirectory();
-        } catch (e: any) { showError(`删除失败: ${e.message}`); } finally { hideLoading(); this.showConfirmModal=false; }
+        } catch (e: any) {
+          showError(`删除失败: ${e.message}`);
+        } finally {
+          hideLoading();
+          this.showConfirmModal = false;
+        }
       };
     },
 
-    copyFilePath(item: FileItem) { showInfo(`文件路径: ${item.fullPath}`); },
+    async renameItem(item: FileItem) {
+      openSoftKeyboard(
+        () => item.name,
+        async (newName) => {
+          if (!newName.trim() || newName === item.name) return showInfo('文件名未改变');
+          try {
+            showLoading();
+            const newPath = this.currentPath === '/' ? `/${newName}` : `${this.currentPath}/${newName}`;
+            await Shell.exec(`mv "${item.fullPath}" "${newPath}"`);
+            showSuccess(`重命名成功: ${item.name} -> ${newName}`);
+            await this.loadDirectory();
+          } catch (e: any) {
+            showError(`重命名失败: ${e.message}`);
+          } finally {
+            hideLoading();
+          }
+        },
+        (v) => {
+          if (!v.trim()) return '请输入新名称';
+          if (v.includes('/')) return '名称不能包含斜杠';
+          if (v === item.name) return '新名称不能与原名相同';
+        }
+      );
+    },
+
+    copyFilePath(item: FileItem) {
+      showInfo(`文件路径: ${item.fullPath}`);
+    },
 
     showFileProperties(item: FileItem) {
-      const prop = `
+      const properties = `
 名称: ${item.name}
-类型: ${item.type==='directory'?'目录':'文件'}
+类型: ${item.type === 'directory' ? '目录' : '文件'}
 大小: ${item.sizeFormatted}
 修改时间: ${item.modifiedTimeFormatted}
 权限: ${item.permissions}
 路径: ${item.fullPath}
-隐藏: ${item.isHidden?'是':'否'}
-可执行: ${item.isExecutable?'是':'否'}
+隐藏: ${item.isHidden ? '是' : '否'}
+可执行: ${item.isExecutable ? '是' : '否'}
       `.trim();
-      showInfo(prop);
+      showInfo(properties);
     },
 
-    toggleHiddenFiles() { this.showHiddenFiles=!this.showHiddenFiles; this.$forceUpdate(); },
-    searchFiles() { openSoftKeyboard(() => this.searchKeyword, v=>{ this.searchKeyword=v; this.$forceUpdate(); }); },
-    clearSearch() { this.searchKeyword=''; this.$forceUpdate(); },
-    formatSize(bytes:number) { if(bytes<1024) return bytes+' B'; if(bytes<1024*1024)return (bytes/1024).toFixed(1)+' KB'; if(bytes<1024*1024*1024)return (bytes/(1024*1024)).toFixed(1)+' MB'; return (bytes/(1024*1024*1024)).toFixed(1)+' GB'; },
-    getFileIconClass(f:FileItem){ let base='file-icon'; if(f.type==='directory') return base+' file-icon-folder'; if(f.name.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) return base+' file-icon-image'; if(f.name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|cfg|sh)$/i)) return base+' file-icon-text'; if(f.isExecutable || f.name.match(/\.(sh|bash|amr|apk|bin|so)$/i)) return base+' file-icon-executable'; return base+' file-icon-file'; },
+    executeConfirmAction() {
+      if (this.confirmCallback) this.confirmCallback();
+      this.showConfirmModal = false;
+      this.confirmCallback = null;
+    },
 
-    handleFileSaved(e:{data:string}){ this.loadDirectory(); },
-    handleBackPress() { if(this.showContextMenu||this.showConfirmModal){this.showContextMenu=false; this.showConfirmModal=false; return;} if(this.canGoBack){this.goBack(); return;} this.$page.finish(); },
-    executeConfirmAction(){ if(this.confirmCallback) this.confirmCallback(); this.showConfirmModal=false; this.confirmCallback=null; },
-    cancelConfirmAction(){ this.showConfirmModal=false; this.confirmCallback=null; },
+    cancelConfirmAction() {
+      this.showConfirmModal = false;
+      this.confirmCallback = null;
+    },
 
-    async goBack(){ if(!this.canGoBack) return; this.currentPath=this.parentPath; await this.loadDirectory(); },
-    async refreshDirectory(){ await this.loadDirectory(); showSuccess('已刷新'); },
-    async createNewFile(){ openSoftKeyboard(()=>'', async name=>{ if(!name.trim()){showWarning('文件名不能为空'); return;} try{ showLoading(); const full=this.currentPath==='/'?`/${name}`:`${this.currentPath}/${name}`; await Shell.exec(`touch "${full.replace(/"/g,'\\"')}"`); showSuccess('创建成功'); await this.loadDirectory();} catch(e:any){showError(`创建失败: ${e.message}`);} finally{hideLoading();} }, v=>{ if(!v.trim()) return '请输入文件名'; if(v.includes('/')) return '文件名不能含斜杠'; return undefined; }); },
-    async createNewDirectory(){ openSoftKeyboard(()=>'', async name=>{ if(!name.trim()){showWarning('目录名不能为空'); return;} try{ showLoading(); const full=this.currentPath==='/'?`/${name}`:`${this.currentPath}/${name}`; await Shell.exec(`mkdir -p "${full.replace(/"/g,'\\"')}"`); showSuccess('创建成功'); await this.loadDirectory(); } catch(e:any){showError(`创建失败: ${e.message}`);} finally{hideLoading();} }, v=>{ if(!v.trim()) return '请输入目录名'; if(v.includes('/')) return '目录名不能含斜杠'; return undefined; }); },
+    toggleHiddenFiles() {
+      this.showHiddenFiles = !this.showHiddenFiles;
+    },
 
-    async testDirectoryFunctions() { console.log(this.currentPath, this.fileList.length); },
-  }
+    clearSearch() {
+      this.searchKeyword = '';
+    },
+
+    searchFiles() {
+      openSoftKeyboard(() => this.searchKeyword, (v) => (this.searchKeyword = v));
+    },
+
+    updateStats() {
+      this.totalFiles = this.fileList.length;
+      this.totalSize = this.fileList.filter(f => f.type === 'file').reduce((a, b) => a + b.size, 0);
+      this.selectedCount = 0;
+    },
+
+    formatSize(bytes: number): string {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+      return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+    },
+
+    getFileIconClass(file: FileItem): string {
+      let base = 'file-icon';
+      if (file.type === 'directory') return `${base} file-icon-folder`;
+      if (file.name.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) return `${base} file-icon-image`;
+      if (file.name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash|cfg)$/i)) return `${base} file-icon-text`;
+      if (file.isExecutable || file.name.match(/\.(sh|bash|amr|apk|bin|so)$/i)) return `${base} file-icon-executable`;
+      return `${base} file-icon-file`;
+    },
+
+    handleFileSaved() {
+      this.loadDirectory();
+    },
+
+    handleBackPress() {
+      if (this.showContextMenu || this.showConfirmModal) {
+        this.showContextMenu = false;
+        this.showConfirmModal = false;
+        return;
+      }
+      if (this.canGoBack) return this.goBack();
+      this.$page.finish();
+    },
+
+    async goBack() {
+      if (!this.canGoBack) return;
+      this.currentPath = this.parentPath;
+      await this.loadDirectory();
+    },
+  },
 });
