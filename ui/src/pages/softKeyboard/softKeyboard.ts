@@ -331,7 +331,8 @@ const softKeyboard = defineComponent({
 
     methods: {
         close() {
-            $falcon.trigger<string>('softKeyboard', this.editor?.textBuffer.data.join('\n') || '');
+            const text = this.editor?.textBuffer.data.join('\n') || '';
+            $falcon.trigger<{ data: string }>('softKeyboard', { data: text });
             this.$page.finish();
         },
         clicked(key: string) {
@@ -365,8 +366,8 @@ const softKeyboard = defineComponent({
                 [')', '）'],
                 ['[', '【'],
                 [']', '】'],
-                ['"', '“”'],
-                ["'", "‘’"],
+                ['"', '""'],
+                ["'", "''"],
                 ['<', '《'],
                 ['>', '》'],
                 ['\\', '、'],
