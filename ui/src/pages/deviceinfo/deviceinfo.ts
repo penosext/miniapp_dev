@@ -120,7 +120,8 @@ export default defineComponent({
         
         // 1. 获取IP地址（主要信息）
         try {
-          const ipResult = await Shell.exec('cat /userdata/syslog/ip');
+          const ipResult = await Shell.exec('ip addr show wlan0 2>/dev/null | grep -m1 'inet ' | awk '{print $2}' | cut -d/ -f1
+');
           this.deviceInfo.ipAddress = ipResult.trim();
           console.log('IP地址:', this.deviceInfo.ipAddress);
         } catch (ipError: any) {
