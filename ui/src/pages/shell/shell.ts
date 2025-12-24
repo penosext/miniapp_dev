@@ -130,14 +130,64 @@ export default defineComponent({
       }
     },
     
+    // ANSI转义序列解析器 - 修复neofetch输出问题
+    parseAnsiCodes(text: string): string {
+      if (!text || typeof text !== 'string') return text;
+      
+      // 逐步解析和移除ANSI转义序列
+      let result = text;
+      
+      // 1. 移除光标控制序列
+      result = result
+        .replace(/\x1b\[\?25[lh]/g, '')  // 隐藏/显示光标
+        .replace(/\x1b\[\?7[lh]/g, '')   // 自动换行
+        .replace(/\x1b\[[0-9]*[ABCD]/g, '')  // 光标移动
+        .replace(/\x1b\[[0-9]*[JK]/g, '')    // 擦除行/屏幕
+        .replace(/\x1b\[[0-9]*[su]/g, '')    // 保存/恢复光标位置
+        .replace(/\x1b\[[0-9;]*[Hf]/g, '')   // 光标定位
+        .replace(/\x1b\[9999999D/g, '');     // 大的光标移动
+      
+      // 2. 移除颜色序列（保留部分颜色标识，用简单标记代替）
+      // 移除所有颜色和样式重置序列
+      result = result
+        .replace(/\x1b\[0m/g, '')      // 重置所有属性
+        .replace(/\x1b\[1m/g, '')      // 粗体开始
+        .replace(/\x1b\[22m/g, '')     // 粗体结束
+        .replace(/\x1b\[[34]m/g, '');  // 简单颜色
+      
+      // 3. 移除256色序列
+      result = result.replace(/\x1b\[38;5;[0-9]{1,3}m/g, '');
+      result = result.replace(/\x1b\[48;5;[0-9]{1,3}m/g, '');
+      
+      // 4. 移除所有其他ANSI颜色/样式序列（通用模式）
+      result = result.replace(/\x1b\[[0-9;]*m/g, '');
+      
+      // 5. 移除操作系统命令序列
+      result = result.replace(/\x1b\][0-9];[^\x07]*\x07/g, '');
+      
+      // 6. 移除单独的ESC字符（如果有）
+      result = result.replace(/\x1b/g, '');
+      
+      // 7. 清理多余的空白和特殊字符
+      result = result
+        .replace(/[\x00-\x1F\x7F]/g, '')  // 移除控制字符
+        .replace(/\s+/g, ' ')             // 合并多个空格
+        .trim();
+      
+      return result;
+    },
+    
     // 添加终端行
     addTerminalLine(type: TerminalLine['type'], content: string) {
       const timestamp = Date.now();
       
+      // 解析ANSI转义序列
+      const parsedContent = this.parseAnsiCodes(content);
+      
       this.terminalLines.push({
         id: `line_${timestamp}_${Math.random().toString(36).substr(2, 9)}`,
         type,
-        content,
+        content: parsedContent,
         timestamp
       });
       
@@ -304,7 +354,7 @@ export default defineComponent({
         console.log('命令执行结果:', result);
         console.log('执行耗时:', duration, 'ms');
         
-        // 显示结果
+        // 显示结果（ANSI序列会被parseAnsiCodes处理）
         if (result && result.trim()) {
           this.addTerminalLine('output', result);
         } else {
@@ -447,6 +497,7 @@ vi <文件>     编辑文本文件 (使用内置编辑器)
   free -m       内存使用情况
   uname -a      系统信息
   date          日期时间
+  neofetch      系统信息（已修复显示问题）
 
 网络工具:
   ping [主机]   网络连通性测试
