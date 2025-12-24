@@ -118,20 +118,42 @@ export default defineComponent({
         
         console.log('开始获取设备信息...');
         
-        // 1. 获取IP地址（主要信息）
+        // 1. 获取IP地址（主要信息）- 使用新的命令
         try {
-          const ipResult = await Shell.exec('ip addr show wlan0 2>/dev/null | grep -m1 'inet ' | awk '{print $2}' | cut -d/ -f1
-');
-          this.deviceInfo.ipAddress = ipResult.trim();
-          console.log('IP地址:', this.deviceInfo.ipAddress);
+          // 使用新的命令获取wlan0接口的IP地址
+          const ipResult = await Shell.exec("ip addr show wlan0 2>/dev/null | grep -m1 'inet ' | awk '{print $2}' | cut -d/ -f1");
+          const ipAddress = ipResult.trim();
+          
+          if (ipAddress) {
+            this.deviceInfo.ipAddress = ipAddress;
+            console.log('IP地址:', this.deviceInfo.ipAddress);
+          } else {
+            // 如果wlan0没有IP，尝试eth0接口
+            console.log('wlan0接口未获取到IP，尝试eth0接口...');
+            const ethIpResult = await Shell.exec("ip addr show eth0 2>/dev/null | grep -m1 'inet ' | awk '{print $2}' | cut -d/ -f1");
+            const ethIpAddress = ethIpResult.trim();
+            
+            if (ethIpAddress) {
+              this.deviceInfo.ipAddress = ethIpAddress;
+              console.log('eth0接口IP地址:', this.deviceInfo.ipAddress);
+            } else {
+              // 如果都没有，尝试获取所有接口的第一个IPv4地址
+              console.log('尝试获取所有接口的IP地址...');
+              const allIpResult = await Shell.exec("ip -4 addr | grep -m1 'inet ' | awk '{print $2}' | cut -d/ -f1");
+              const allIpAddress = allIpResult.trim();
+              
+              this.deviceInfo.ipAddress = allIpAddress || '未获取到IP地址';
+              console.log('所有接口IP地址:', this.deviceInfo.ipAddress);
+            }
+          }
         } catch (ipError: any) {
           console.warn('获取IP地址失败:', ipError);
-          this.deviceInfo.ipAddress = '获取失败，尝试其他方法...';
+          this.deviceInfo.ipAddress = '获取失败，尝试备用方法...';
           
-          // 尝试其他方法获取IP
+          // 备用方法：尝试使用ifconfig
           try {
-            const ipAlt = await Shell.exec('ifconfig | grep "inet addr" | grep -v "127.0.0.1"');
-            this.deviceInfo.ipAddress = ipAlt.trim() || '未获取到IP地址';
+            const ifconfigResult = await Shell.exec('ifconfig 2>/dev/null || ip addr 2>/dev/null');
+            this.deviceInfo.ipAddress = this.extractIPFromIfconfig(ifconfigResult) || '未获取到IP地址';
           } catch (altError: any) {
             this.deviceInfo.ipAddress = `错误: ${altError.message}`;
           }
@@ -168,7 +190,7 @@ export default defineComponent({
         
         // 4. 获取网络信息
         try {
-          const ifaceResult = await Shell.exec('ifconfig -a || ip addr');
+          const ifaceResult = await Shell.exec('ip -4 addr show 2>/dev/null || ifconfig -a 2>/dev/null');
           this.deviceInfo.networkInfo = {
             interfaces: ifaceResult.trim()
           };
@@ -215,6 +237,27 @@ export default defineComponent({
       }
     },
     
+    // 从ifconfig输出中提取IP地址
+    extractIPFromIfconfig(ifconfigOutput: string): string {
+      if (!ifconfigOutput) return '';
+      
+      // 尝试匹配IPv4地址
+      const ipv4Regex = /inet (?:addr:)?(\d+\.\d+\.\d+\.\d+)/g;
+      const matches = ifconfigOutput.match(ipv4Regex);
+      
+      if (matches && matches.length > 0) {
+        // 过滤掉127.0.0.1本地回环地址
+        const nonLoopbackIps = matches.filter(ip => !ip.includes('127.0.0.1'));
+        if (nonLoopbackIps.length > 0) {
+          // 提取第一个非回环地址的IP
+          const match = nonLoopbackIps[0].match(/(\d+\.\d+\.\d+\.\d+)/);
+          return match ? match[1] : '';
+        }
+      }
+      
+      return '';
+    },
+    
     // 刷新设备信息
     async refreshInfo() {
       if (this.isRefreshing) return;
@@ -236,22 +279,6 @@ export default defineComponent({
       // 如果IP是错误信息，直接返回
       if (ip.includes('错误') || ip.includes('失败')) {
         return ip;
-      }
-      
-      // 尝试从ifconfig输出中提取IP
-      if (ip.includes('inet addr:')) {
-        const match = ip.match(/inet addr:(\d+\.\d+\.\d+\.\d+)/);
-        if (match && match[1]) {
-          return match[1];
-        }
-      }
-      
-      // 尝试从ip addr输出中提取IP
-      if (ip.includes('inet ')) {
-        const match = ip.match(/inet (\d+\.\d+\.\d+\.\d+)/);
-        if (match && match[1]) {
-          return match[1];
-        }
       }
       
       return ip;
