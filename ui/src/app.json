@@ -9,6 +9,7 @@
     "aiNav": "pages/aiNav/aiNav.vue",
     "fileManager": "pages/fileManager/fileManager.vue",
     "fileEditor": "pages/fileEditor/fileEditor.vue",
+    "misc": "pages/misc/misc.vue",
     "deviceinfo": "pages/deviceinfo/deviceinfo.vue"
   },
   "options": {
