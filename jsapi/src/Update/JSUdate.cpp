@@ -136,20 +136,20 @@ void JSUdate::checkForUpdates(JQAsyncInfo& info) {
         UpdateInfo update_info = update->checkForUpdates();
         std::string current_version = update->getCurrentVersion();
         
-        Bson::object result = {
-            {"version", update_info.version},
-            {"name", update_info.name},
-            {"description", update_info.description},
-            {"release_date", update_info.release_date},
-            {"download_url", update_info.download_url},
-            {"checksum_sha256", update_info.checksum_sha256},
-            {"file_size", static_cast<int64_t>(update_info.file_size)},
-            {"min_system_version", update_info.min_system_version},
-            {"release_notes", update_info.release_notes},
-            {"manifest_path", update_info.manifest_path},
-            {"current_version", current_version},
-            {"has_update", update_info.isNewerThan(current_version)}
-        };
+        // 修正：使用正确的 Bson 构造方式
+        Bson::object result;
+        result["version"] = update_info.version;
+        result["name"] = update_info.name;
+        result["description"] = update_info.description;
+        result["release_date"] = update_info.release_date;
+        result["download_url"] = update_info.download_url;
+        result["checksum_sha256"] = update_info.checksum_sha256;
+        result["file_size"] = static_cast<int64_t>(update_info.file_size);
+        result["min_system_version"] = update_info.min_system_version;
+        result["release_notes"] = update_info.release_notes;
+        result["manifest_path"] = update_info.manifest_path;
+        result["current_version"] = current_version;
+        result["has_update"] = update_info.isNewerThan(current_version);
         
         info.post(result);
     } catch (const std::exception& e) {
@@ -167,18 +167,18 @@ void JSUdate::getUpdateInfo(JQAsyncInfo& info) {
         std::string update_json_url = info[0].string_value();
         UpdateInfo update_info = update->getUpdateInfo(update_json_url);
         
-        Bson::object result = {
-            {"version", update_info.version},
-            {"name", update_info.name},
-            {"description", update_info.description},
-            {"release_date", update_info.release_date},
-            {"download_url", update_info.download_url},
-            {"checksum_sha256", update_info.checksum_sha256},
-            {"file_size", static_cast<int64_t>(update_info.file_size)},
-            {"min_system_version", update_info.min_system_version},
-            {"release_notes", update_info.release_notes},
-            {"manifest_path", update_info.manifest_path}
-        };
+        // 修正：使用正确的 Bson 构造方式
+        Bson::object result;
+        result["version"] = update_info.version;
+        result["name"] = update_info.name;
+        result["description"] = update_info.description;
+        result["release_date"] = update_info.release_date;
+        result["download_url"] = update_info.download_url;
+        result["checksum_sha256"] = update_info.checksum_sha256;
+        result["file_size"] = static_cast<int64_t>(update_info.file_size);
+        result["min_system_version"] = update_info.min_system_version;
+        result["release_notes"] = update_info.release_notes;
+        result["manifest_path"] = update_info.manifest_path;
         
         info.post(result);
     } catch (const std::exception& e) {
@@ -320,13 +320,14 @@ void JSUdate::cleanupOldVersions(JQFunctionInfo& info) {
 
 void JSUdate::publishDownloadProgress(size_t downloaded, size_t total, 
                                      double percentage, const std::string& file_path) {
-    Bson::object progress = {
-        {"downloaded", static_cast<int64_t>(downloaded)},
-        {"total", static_cast<int64_t>(total)},
-        {"percentage", percentage},
-        {"file_path", file_path},
-        {"status", "downloading"}
-    };
+    // 修正：使用正确的 Bson 构造方式
+    Bson::object progress;
+    progress["downloaded"] = static_cast<int64_t>(downloaded);
+    progress["total"] = static_cast<int64_t>(total);
+    progress["percentage"] = percentage;
+    progress["file_path"] = file_path;
+    progress["status"] = "downloading";
+    
     publish("update_download_progress", progress);
 }
 
