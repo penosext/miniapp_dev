@@ -27,7 +27,7 @@
 #include <thread>
 #include <chrono>
 #include <curl/curl.h>
-
+#include <openssl/sha.h>
 #ifdef _WIN32
 #include <windows.h>
 #else
@@ -513,7 +513,8 @@ bool Update::verifyFileIntegrity(const std::string& file_path,
         return false;
     }
     
-    // 计算 SHA256
+    // 计算 SHA256 - 使用 OpenSSL 的 SHA256 函数
+    unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256_CTX sha256;
     SHA256_Init(&sha256);
     
@@ -522,8 +523,6 @@ bool Update::verifyFileIntegrity(const std::string& file_path,
         SHA256_Update(&sha256, buffer, file.gcount());
     }
     SHA256_Update(&sha256, buffer, file.gcount());
-    
-    unsigned char hash[SHA256_DIGEST_LENGTH];
     SHA256_Final(hash, &sha256);
     
     // 转换为十六进制字符串
