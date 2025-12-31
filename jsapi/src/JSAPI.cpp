@@ -1,10 +1,11 @@
 #include <jsmodules/JSCModuleExtension.h>
 #include <jquick_config.h>
+
 #include "AI/JSAI.hpp"
 #include "IME/JSIME.hpp"
 #include "ScanInput/JSScanInput.hpp"
 #include "Shell/JSShell.hpp"
-#include "Update/JSUdate.hpp"
+#include "Update/JSUdate.hpp"  // 确保有这个
 
 using namespace JQUTIL_NS;
 
@@ -13,7 +14,7 @@ static std::vector<std::string> exportList = {
     "IME",
     "ScanInput",
     "Shell",
-    "Update"
+    "Update"  // 确保有这个
 };
 
 static int module_init(JSContext *ctx, JSModuleDef *m)
@@ -24,7 +25,8 @@ static int module_init(JSContext *ctx, JSModuleDef *m)
     env->setModuleExport("IME", createIME(env.get()));
     env->setModuleExport("ScanInput", createScanInput(env.get()));
     env->setModuleExport("Shell", createShell(env.get()));
-    env->setModuleExport("Update", createUpdate(env.get()));
+    env->setModuleExport("Update", createUpdate(env.get()));  // 确保有这个
+
     env->setModuleExportDone(JS_UNDEFINED, exportList);
     return 0;
 }
