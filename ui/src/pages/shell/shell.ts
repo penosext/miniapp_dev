@@ -196,10 +196,6 @@ export default defineComponent({
           this.clearTerminal();
           return true;
           
-        case 'history':
-          this.showHistory();
-          return true;
-          
         case 'reset':
           this.resetTerminal();
           return true;
@@ -362,45 +358,6 @@ export default defineComponent({
       }
     },
     
-    // 测试Shell功能
-    async testShell() {
-      if (!this.shellInitialized || !Shell) {
-        this.addTerminalLine('error', 'Shell模块未初始化');
-        return;
-      }
-      
-      this.addTerminalLine('system', '开始Shell功能测试...');
-      
-      const testCommands = [
-        { cmd: 'echo "Shell测试成功"', desc: '基本echo命令' },
-        { cmd: 'ls', desc: '当前目录列表' },
-        { cmd: 'pwd', desc: '当前路径' },
-        { cmd: 'cd / && pwd', desc: '切换到根目录并显示' },
-        { cmd: 'mkdir test_folder_123', desc: '创建测试文件夹' },
-        { cmd: 'ls', desc: '检查文件夹是否创建' },
-        { cmd: 'cd / && pwd', desc: '切换回根目录' },
-      ];
-      
-      for (const test of testCommands) {
-        try {
-          // 对于cd命令，特殊处理
-          if (test.cmd.startsWith('cd')) {
-            const args = test.cmd.replace('cd ', '').split(' && ');
-            await this.handleCdCommand(args[0].split(' '));
-            continue;
-          }
-          
-          const result = await Shell.exec(`cd "${this.currentDir}" && ${test.cmd}`);
-          this.addTerminalLine('output', `${test.desc}: ${result.trim()}`);
-        } catch (error: any) {
-          this.addTerminalLine('error', `${test.desc}失败: ${error.message}`);
-        }
-        await this.delay(500); // 延迟避免过快
-      }
-      
-      this.addTerminalLine('system', 'Shell测试完成');
-    },
-    
     // 延迟函数
     delay(ms: number): Promise<void> {
       return new Promise(resolve => setTimeout(resolve, ms));
@@ -412,9 +369,7 @@ export default defineComponent({
 可用命令:
 help          显示帮助信息
 clear         清空终端显示
-history       显示命令历史
 reset         重置终端
-test          测试Shell功能
 vi <文件>     编辑文本文件 (使用内置编辑器)
 
 === 真实Shell命令 ===
@@ -450,21 +405,6 @@ vi <文件>     编辑文本文件 (使用内置编辑器)
 状态: ${this.shellInitialized ? 'Shell模块已就绪' : 'Shell模块未初始化'}
 `;
       this.addTerminalLine('output', helpText);
-    },
-    
-    // 显示历史
-    showHistory() {
-      if (this.commandHistory.length === 0) {
-        this.addTerminalLine('output', '命令历史为空');
-        return;
-      }
-      
-      let history = '命令历史:\n';
-      this.commandHistory.forEach((cmd, index) => {
-        history += `${index + 1}. ${cmd}\n`;
-      });
-      
-      this.addTerminalLine('output', history);
     },
     
     // 重置终端
