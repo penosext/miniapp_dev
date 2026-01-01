@@ -57,7 +57,7 @@
           <text @click="createNewFile" :class="'operation-btn' + (isInUserDisk ? ' operation-btn-success' : ' btn-disabled')">新建文件</text>
           <text @click="createNewDirectory" :class="'operation-btn' + (isInUserDisk ? ' operation-btn-success' : ' btn-disabled')">新建目录</text>
           <text @click="refreshDirectory" class="operation-btn operation-btn-primary">刷新目录</text>
-          <text @click="$falcon.navTo('index', {})" class="operation-btn">返回主页</text>
+          <text @click="goBack" :class="'operation-btn' + (canGoBack ? ' operation-btn-primary' : ' btn-disabled')">返回上级</text>
         </div>
       </div>
       
