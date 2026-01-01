@@ -23,7 +23,8 @@ JSUpdate::JSUpdate() :
     filterPattern(".*\\.(tar\\.gz|zip|apk|bin)$")
 {
     // 创建下载目录
-    system(("mkdir -p " + downloadPath).c_str());
+    std::string cmd = "mkdir -p \"" + downloadPath + "\"";
+    system(cmd.c_str());
 }
 
 JSUpdate::~JSUpdate() = default;
@@ -57,7 +58,8 @@ bool JSUpdate::downloadFile(const std::string& url, const std::string& savePath)
         
         if (response.isOk()) {
             // 确保目录存在
-            std::string dirCmd = "mkdir -p $(dirname " + savePath + ")";
+            std::string dir = savePath.substr(0, savePath.find_last_of('/'));
+            std::string dirCmd = "mkdir -p \"" + dir + "\"";
             system(dirCmd.c_str());
             
             // 写入文件
@@ -101,8 +103,8 @@ void JSUpdate::setRepo(JQFunctionInfo& info) {
         ASSERT(info.Length() >= 1);
         JSContext* ctx = info.GetContext();
         
-        // 检查是否是对象
-        if (!JS_IsObject(ctx, info[0])) {
+        // 修复：JS_IsObject只需要一个参数
+        if (!JS_IsObject(info[0])) {
             info.GetReturnValue().ThrowInternalError("First argument must be an object");
             return;
         }
@@ -140,7 +142,7 @@ void JSUpdate::setRepo(JQFunctionInfo& info) {
             if (pathStr) {
                 downloadPath = pathStr;
                 // 创建目录
-                std::string cmd = "mkdir -p " + downloadPath;
+                std::string cmd = "mkdir -p \"" + downloadPath + "\"";
                 system(cmd.c_str());
                 JS_FreeCString(ctx, pathStr);
             }
@@ -350,7 +352,7 @@ void JSUpdate::download(JQAsyncInfo& info) {
         }
         
         // 确保目录存在
-        std::string dirCmd = "mkdir -p " + downloadPath;
+        std::string dirCmd = "mkdir -p \"" + downloadPath + "\"";
         system(dirCmd.c_str());
         
         // 保存文件
@@ -419,13 +421,13 @@ void JSUpdate::cleanup(JQFunctionInfo& info) {
         
         if (info.Length() >= 1) {
             JSContext* ctx = info.GetContext();
-            // 检查是否是整数
-            int isInt = JS_IsNumber(ctx, info[0]);
-            if (isInt) {
+            // 修复：JS_IsNumber只需要一个参数
+            if (JS_IsNumber(info[0])) {
                 int32_t days;
-                JS_ToInt32(ctx, &days, info[0]);
-                if (days > 0) {
-                    maxAgeDays = days;
+                if (JS_ToInt32(ctx, &days, info[0]) == 0) {
+                    if (days > 0) {
+                        maxAgeDays = days;
+                    }
                 }
             }
         }
