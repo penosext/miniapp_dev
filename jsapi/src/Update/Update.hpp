@@ -5,16 +5,16 @@
 
 namespace JSAPI {
 
-class Update : public jqutil_dist::JQBaseObject {
+class Update : public JQUTIL_NS::JQBaseObject {
 public:
     Update();
 
-    void setRepo(jqutil_dist::JQFunctionInfo& info);
-    void check(jqutil_dist::JQAsyncInfo& info);
+    void setRepo(JQUTIL_NS::JQFunctionInfo& info);
+    void check(JQUTIL_NS::JQAsyncInfo& info);
 
 private:
-    std::string owner = "default_owner";
-    std::string repo  = "default_repo";
+    std::string owner;
+    std::string repo;
 
     static bool versionGreater(const std::string& a, const std::string& b);
 };
