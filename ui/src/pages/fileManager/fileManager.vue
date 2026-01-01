@@ -43,14 +43,19 @@
             {{ showHiddenFiles ? '隐藏' : '显示' }}隐藏文件
           </text>
         </div>
+        
+        <div class="item" v-if="!isInUserDisk">
+          <text class="item-text" style="color: #ffc107;">权限提示:</text>
+          <text class="item-text" style="color: #ffc107; flex: 2;">当前目录为只读，只能在/userdisk目录下创建、删除、重命名</text>
+        </div>
       </div>
       
       <!-- 操作按钮 -->
       <div class="section">
         <text class="section-title">文件操作</text>
         <div class="operations-grid">
-          <text @click="createNewFile" class="operation-btn operation-btn-success">新建文件</text>
-          <text @click="createNewDirectory" class="operation-btn operation-btn-success">新建目录</text>
+          <text @click="createNewFile" :class="'operation-btn' + (isInUserDisk ? ' operation-btn-success' : ' btn-disabled')">新建文件</text>
+          <text @click="createNewDirectory" :class="'operation-btn' + (isInUserDisk ? ' operation-btn-success' : ' btn-disabled')">新建目录</text>
           <text @click="refreshDirectory" class="operation-btn operation-btn-primary">刷新目录</text>
           <text @click="$falcon.navTo('index', {})" class="operation-btn">返回主页</text>
         </div>
@@ -69,7 +74,7 @@
         <div v-for="file in filteredFiles" :key="file.fullPath" 
              class="file-item" 
              @click="openItem(file)"
-             @contextmenu="showContextMenu($event, file)">
+             @longpress="showFileProperties(file)">
           
           <text :class="getFileIconClass(file)">{{ file.icon }}</text>
           <text class="file-name">{{ file.name }}</text>
@@ -77,22 +82,12 @@
           <text class="file-date">{{ file.modifiedTimeFormatted }}</text>
           
           <div class="file-actions">
-            <text @click.stop="renameItem(file)" class="btn btn-warning">重命名</text>
-            <text @click.stop="deleteItem(file)" class="btn btn-danger">删除</text>
+            <text @click.stop="renameItem(file)" :class="'btn' + (isFileInUserDisk(file.fullPath) ? ' btn-warning' : ' btn-disabled')">重命名</text>
+            <text @click.stop="deleteItem(file)" :class="'btn' + (isFileInUserDisk(file.fullPath) ? ' btn-danger' : ' btn-disabled')">删除</text>
           </div>
         </div>
       </div>
     </scroller>
-    
-    <!-- 上下文菜单 -->
-    <div v-if="showContextMenu && selectedFile" class="context-menu" 
-         :style="{ left: contextMenuX + 'px', top: contextMenuY + 'px' }">
-      <div @click="executeContextMenu('open')" class="menu-item">打开</div>
-      <div @click="executeContextMenu('rename')" class="menu-item">重命名</div>
-      <div @click="executeContextMenu('delete')" class="menu-item">删除</div>
-      <div @click="executeContextMenu('copy_path')" class="menu-item">复制路径</div>
-      <div @click="executeContextMenu('properties')" class="menu-item">属性</div>
-    </div>
     
     <!-- 确认对话框 -->
     <div v-if="showConfirmModal" class="confirm-modal">
