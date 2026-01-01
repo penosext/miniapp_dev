@@ -54,13 +54,8 @@
         >
           执行
         </text>
-        <text 
-          class="btn btn-clear"
-          @click="clearTerminal"
-        >
-          清空
-        </text>
       </div>
+     <div class="item"><text class="btn btn-clear" @click="clearTerminal">清空</text></div>
     </div>
   </div>
 </template>
