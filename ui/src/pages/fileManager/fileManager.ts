@@ -197,7 +197,7 @@ export default defineComponent({
       }
     },
     
-    // 加载目录 - 改进版本，修复根目录显示问题
+    // 加载目录 - 修复版本，确保能正确显示所有目录和文件
     async loadDirectory() {
       if (!this.shellInitialized || !Shell) {
         showError('Shell模块未初始化，无法加载目录');
@@ -221,7 +221,7 @@ export default defineComponent({
         this.currentPath = path;
         console.log('标准化路径:', path);
         
-        // 对于根目录，使用特殊命令
+        // 使用一个简单可靠的命令来获取文件列表
         let listCmd = '';
         if (path === '/') {
           // 根目录直接列出内容
@@ -238,90 +238,111 @@ export default defineComponent({
           console.log('ls命令原始输出:', result);
         } catch (error: any) {
           console.error('ls命令执行失败:', error);
-          // 尝试另一种方法
-          if (path === '/') {
-            result = await Shell.exec('ls /');
-          } else {
-            result = await Shell.exec(`cd "${path}" && ls`);
-          }
-          // 如果没有文件，设置为空
-          if (!result || result.trim() === '') {
+          // 尝试另一种方法 - 使用find命令
+          try {
+            if (path === '/') {
+              result = await Shell.exec('find / -maxdepth 1 -type f -o -type d 2>/dev/null | grep -v "^$"');
+            } else {
+              result = await Shell.exec(`cd "${path}" && find . -maxdepth 1 -type f -o -type d 2>/dev/null | grep -v "^$" | sed 's|^./||'`);
+            }
+            
+            // 处理find输出
+            if (result && result.trim()) {
+              const lines = result.trim().split('\n');
+              const files: FileItem[] = [];
+              
+              for (const fileName of lines) {
+                if (!fileName.trim() || fileName === '.' || fileName === '..') continue;
+                
+                const filePath = path === '/' ? `/${fileName}` : `${path}/${fileName}`;
+                
+                // 使用stat命令获取详细信息
+                try {
+                  const statCmd = `stat -c "%s %Y %F" "${filePath}" 2>/dev/null || echo "0 0 unknown"`;
+                  const statResult = await Shell.exec(statCmd);
+                  const statParts = statResult.trim().split(/\s+/);
+                  const size = parseInt(statParts[0] || '0', 10);
+                  const modifiedTime = parseInt(statParts[1] || '0', 10);
+                  const fileType = statParts.slice(2).join(' ') || 'unknown';
+                  
+                  const isDirectory = fileType.includes('directory') || fileType.includes('目录');
+                  const type: 'file' | 'directory' | 'link' | 'unknown' = isDirectory ? 'directory' : 'file';
+                  
+                  // 确定图标
+                  let icon = '?';
+                  if (type === 'directory') {
+                    icon = '📁';
+                  } else if (fileName.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash)$/i)) {
+                    icon = '文';
+                  } else if (fileName.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) {
+                    icon = '图';
+                  } else if (fileName.match(/\.(amr|apk|bin|so|exe)$/i)) {
+                    icon = '执';
+                  } else {
+                    icon = '文';
+                  }
+                  
+                  // 格式化大小
+                  let sizeFormatted = '';
+                  if (type === 'directory') {
+                    sizeFormatted = '<DIR>';
+                  } else if (size < 1024) {
+                    sizeFormatted = `${size} B`;
+                  } else if (size < 1024 * 1024) {
+                    sizeFormatted = `${(size / 1024).toFixed(1)} KB`;
+                  } else if (size < 1024 * 1024 * 1024) {
+                    sizeFormatted = `${(size / (1024 * 1024)).toFixed(1)} MB`;
+                  } else {
+                    sizeFormatted = `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+                  }
+                  
+                  files.push({
+                    name: fileName,
+                    type,
+                    size,
+                    sizeFormatted,
+                    modifiedTime,
+                    modifiedTimeFormatted: formatTime(modifiedTime),
+                    permissions: '-rw-r--r--',
+                    isHidden: fileName.startsWith('.'),
+                    fullPath: filePath,
+                    icon,
+                    isExecutable: false,
+                  });
+                } catch (statError) {
+                  console.warn(`获取文件信息失败: ${filePath}`, statError);
+                  // 创建基本文件信息
+                  const isDirectory = fileName.includes('/') ? false : true; // 简单判断
+                  files.push({
+                    name: fileName,
+                    type: isDirectory ? 'directory' : 'file',
+                    size: 0,
+                    sizeFormatted: isDirectory ? '<DIR>' : '0 B',
+                    modifiedTime: Math.floor(Date.now() / 1000),
+                    modifiedTimeFormatted: formatTime(Math.floor(Date.now() / 1000)),
+                    permissions: '-rw-r--r--',
+                    isHidden: fileName.startsWith('.'),
+                    fullPath: filePath,
+                    icon: isDirectory ? '📁' : '文',
+                    isExecutable: false,
+                  });
+                }
+              }
+              
+              this.fileList = files;
+              this.updateStats();
+              return;
+            } else {
+              console.warn('目录为空或命令无输出');
+              this.fileList = [];
+              return;
+            }
+          } catch (findError) {
+            console.error('find命令也失败:', findError);
+            showError(`无法加载目录: ${findError.message}`);
             this.fileList = [];
             return;
           }
-          
-          // 处理简单的ls输出
-          const lines = result.trim().split('\n');
-          const files: FileItem[] = [];
-          
-          for (const fileName of lines) {
-            if (!fileName.trim() || fileName === '.') continue;
-            
-            const filePath = path === '/' ? `/${fileName}` : `${path}/${fileName}`;
-            
-            // 使用stat命令获取详细信息
-            const statCmd = `stat -c "%s %Y %F" "${filePath}" 2>/dev/null`;
-            let statResult = '0 0 unknown';
-            try {
-              statResult = await Shell.exec(statCmd);
-            } catch (statError) {
-              console.warn(`获取文件信息失败: ${filePath}`, statError);
-            }
-            
-            const statParts = statResult.trim().split(/\s+/);
-            const size = parseInt(statParts[0] || '0', 10);
-            const modifiedTime = parseInt(statParts[1] || '0', 10);
-            const fileType = statParts.slice(2).join(' ') || 'unknown';
-            
-            const isDirectory = fileType.includes('directory') || fileType.includes('目录');
-            const type: 'file' | 'directory' | 'link' | 'unknown' = isDirectory ? 'directory' : 'file';
-            
-            // 确定图标
-            let icon = '?';
-            if (type === 'directory') {
-              icon = '📁';
-            } else if (fileName.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash)$/i)) {
-              icon = '文';
-            } else if (fileName.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) {
-              icon = '图';
-            } else if (fileName.match(/\.(amr|apk|bin|so|exe)$/i)) {
-              icon = '执';
-            } else {
-              icon = '文';
-            }
-            
-            // 格式化大小
-            let sizeFormatted = '';
-            if (type === 'directory') {
-              sizeFormatted = '<DIR>';
-            } else if (size < 1024) {
-              sizeFormatted = `${size} B`;
-            } else if (size < 1024 * 1024) {
-              sizeFormatted = `${(size / 1024).toFixed(1)} KB`;
-            } else if (size < 1024 * 1024 * 1024) {
-              sizeFormatted = `${(size / (1024 * 1024)).toFixed(1)} MB`;
-            } else {
-              sizeFormatted = `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-            }
-            
-            files.push({
-              name: fileName,
-              type,
-              size,
-              sizeFormatted,
-              modifiedTime,
-              modifiedTimeFormatted: formatTime(modifiedTime),
-              permissions: '-rw-r--r--',
-              isHidden: fileName.startsWith('.'),
-              fullPath: filePath,
-              icon,
-              isExecutable: false,
-            });
-          }
-          
-          this.fileList = files;
-          this.updateStats();
-          return;
         }
         
         if (!result || result.trim() === '') {
@@ -532,7 +553,7 @@ export default defineComponent({
       this.selectedCount = 0;
     },
     
-    // 打开文件或目录
+    // 打开文件或目录 - 现在应该能正常打开所有目录
     async openItem(item: FileItem) {
       console.log('打开项目:', item.name, '类型:', item.type, '路径:', item.fullPath);
       
@@ -551,16 +572,7 @@ export default defineComponent({
     async openFile(file: FileItem) {
       console.log('打开文件:', file.fullPath);
       
-      // 检查文件是否存在
       try {
-        const checkCmd = `test -f "${file.fullPath}" && echo "exists" || echo "not exists"`;
-        const existsResult = await Shell.exec(checkCmd);
-        
-        if (existsResult.trim() === 'not exists') {
-          showError(`文件不存在: ${file.fullPath}`);
-          return;
-        }
-        
         // 判断文件类型，如果是文本文件则用编辑器打开
         const isTextFile = file.name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash|log|conf|ini|yml|yaml)$/i);
         
