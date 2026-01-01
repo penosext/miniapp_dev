@@ -52,6 +52,10 @@ export default defineComponent({
       shellInitialized: false,
       isLoading: false,
       
+      // 目录树状态
+      directoryTree: [] as FileItem[],
+      selectedTreePath: '/',
+      
       // 操作状态
       showConfirmModal: false,
       confirmTitle: '',
@@ -65,11 +69,13 @@ export default defineComponent({
       // 统计信息
       totalFiles: 0,
       totalSize: 0,
-      selectedCount: 0,
       
       // 错误状态
       initErrorMessage: '',
       showInitError: false,
+      
+      // 布局状态
+      isWideScreen: true, // 默认使用宽屏布局
     };
   },
 
@@ -79,6 +85,7 @@ export default defineComponent({
     // 获取初始路径
     const options = this.$page.loadOptions;
     this.currentPath = options.path || '/';
+    this.selectedTreePath = this.currentPath;
     console.log('初始路径:', this.currentPath);
     
     // 设置页面返回键处理
@@ -87,6 +94,9 @@ export default defineComponent({
     
     // 监听文件保存事件
     $falcon.on('file_saved', this.handleFileSaved);
+    
+    // 检查屏幕宽度，决定布局模式
+    this.checkScreenWidth();
     
     await this.initializeShell();
   },
@@ -121,10 +131,12 @@ export default defineComponent({
       return files;
     },
     
-    canGoBack(): boolean {
-      return this.currentPath !== '/';
+    // 检查当前路径是否在/userdisk目录下
+    isInUserDisk(): boolean {
+      return this.currentPath.startsWith('/userdisk');
     },
     
+    // 获取当前路径的父路径
     parentPath(): string {
       if (this.currentPath === '/') return '/';
       const parts = this.currentPath.split('/').filter(part => part);
@@ -133,19 +145,25 @@ export default defineComponent({
       return parts.length > 0 ? '/' + parts.join('/') : '/';
     },
     
-    // 检查当前路径是否在/userdisk目录下
-    isInUserDisk(): boolean {
-      return this.currentPath.startsWith('/userdisk');
+    // 检查是否可以返回上级
+    canGoBack(): boolean {
+      return this.currentPath !== '/';
     },
   },
 
   methods: {
+    // 检查屏幕宽度
+    checkScreenWidth() {
+      // 简单判断，可以根据实际设备调整
+      this.isWideScreen = window.innerWidth > 768;
+    },
+    
     // 检查文件是否在/userdisk目录下
     isFileInUserDisk(filePath: string): boolean {
       return filePath.startsWith('/userdisk');
     },
     
-    // 初始化Shell - 确保错误提示显示
+    // 初始化Shell
     async initializeShell() {
       try {
         console.log('开始初始化Shell模块...');
@@ -181,6 +199,9 @@ export default defineComponent({
         this.initErrorMessage = '';
         console.log('Shell模块初始化成功');
         
+        // 加载根目录作为目录树
+        await this.loadRootDirectory();
+        
         // 加载当前目录
         await this.loadDirectory();
         
@@ -197,7 +218,90 @@ export default defineComponent({
       }
     },
     
-    // 加载目录 - 修复版本，确保能正确显示所有目录和文件
+    // 加载根目录作为目录树
+    async loadRootDirectory() {
+      if (!this.shellInitialized || !Shell) {
+        return;
+      }
+      
+      try {
+        console.log('加载根目录作为目录树...');
+        
+        // 获取根目录下的目录列表
+        const listCmd = `ls -la / | grep '^d' | head -20`; // 只获取前20个目录
+        let result = '';
+        
+        try {
+          result = await Shell.exec(listCmd);
+        } catch (error) {
+          console.warn('ls命令失败，尝试使用find命令');
+          result = await Shell.exec('find / -maxdepth 1 -type d 2>/dev/null | head -20');
+        }
+        
+        if (!result || result.trim() === '') {
+          console.warn('根目录为空或命令无输出');
+          this.directoryTree = [];
+          return;
+        }
+        
+        const lines = result.trim().split('\n');
+        const directories: FileItem[] = [];
+        
+        // 添加根目录
+        directories.push({
+          name: '/',
+          type: 'directory',
+          size: 0,
+          sizeFormatted: '<DIR>',
+          modifiedTime: Math.floor(Date.now() / 1000),
+          modifiedTimeFormatted: formatTime(Math.floor(Date.now() / 1000)),
+          permissions: 'drwxr-xr-x',
+          isHidden: false,
+          fullPath: '/',
+          icon: '📁',
+          isExecutable: false,
+        });
+        
+        // 添加常用系统目录
+        const commonDirs = ['/userdisk', '/system', '/data', '/storage', '/mnt', '/dev', '/proc', '/sys'];
+        
+        for (const dir of commonDirs) {
+          // 检查目录是否存在
+          try {
+            const checkCmd = `test -d "${dir}" && echo "exists"`;
+            const existsResult = await Shell.exec(checkCmd);
+            
+            if (existsResult.trim() === 'exists') {
+              directories.push({
+                name: dir,
+                type: 'directory',
+                size: 0,
+                sizeFormatted: '<DIR>',
+                modifiedTime: Math.floor(Date.now() / 1000),
+                modifiedTimeFormatted: formatTime(Math.floor(Date.now() / 1000)),
+                permissions: 'drwxr-xr-x',
+                isHidden: false,
+                fullPath: dir,
+                icon: '📁',
+                isExecutable: false,
+              });
+            }
+          } catch (error) {
+            console.warn(`目录 ${dir} 不存在或无法访问`);
+          }
+        }
+        
+        this.directoryTree = directories;
+        console.log('目录树加载完成:', this.directoryTree.length, '个项目');
+        
+      } catch (error: any) {
+        console.error('加载根目录失败:', error);
+        // 即使失败也不影响主要功能
+        this.directoryTree = [];
+      }
+    },
+    
+    // 加载当前目录
     async loadDirectory() {
       if (!this.shellInitialized || !Shell) {
         showError('Shell模块未初始化，无法加载目录');
@@ -221,15 +325,8 @@ export default defineComponent({
         this.currentPath = path;
         console.log('标准化路径:', path);
         
-        // 使用一个简单可靠的命令来获取文件列表
-        let listCmd = '';
-        if (path === '/') {
-          // 根目录直接列出内容
-          listCmd = 'ls -la /';
-        } else {
-          listCmd = `cd "${path}" && ls -la`;
-        }
-        
+        // 使用ls命令获取文件列表
+        const listCmd = `cd "${path}" && ls -la`;
         console.log('执行命令:', listCmd);
         
         let result = '';
@@ -238,116 +335,36 @@ export default defineComponent({
           console.log('ls命令原始输出:', result);
         } catch (error: any) {
           console.error('ls命令执行失败:', error);
-          // 尝试另一种方法 - 使用find命令
-          try {
-            if (path === '/') {
-              result = await Shell.exec('find / -maxdepth 1 -type f -o -type d 2>/dev/null | grep -v "^$"');
-            } else {
-              result = await Shell.exec(`cd "${path}" && find . -maxdepth 1 -type f -o -type d 2>/dev/null | grep -v "^$" | sed 's|^./||'`);
-            }
-            
-            // 处理find输出
-            if (result && result.trim()) {
-              const lines = result.trim().split('\n');
-              const files: FileItem[] = [];
-              
-              for (const fileName of lines) {
-                if (!fileName.trim() || fileName === '.' || fileName === '..') continue;
-                
-                const filePath = path === '/' ? `/${fileName}` : `${path}/${fileName}`;
-                
-                // 使用stat命令获取详细信息
-                try {
-                  const statCmd = `stat -c "%s %Y %F" "${filePath}" 2>/dev/null || echo "0 0 unknown"`;
-                  const statResult = await Shell.exec(statCmd);
-                  const statParts = statResult.trim().split(/\s+/);
-                  const size = parseInt(statParts[0] || '0', 10);
-                  const modifiedTime = parseInt(statParts[1] || '0', 10);
-                  const fileType = statParts.slice(2).join(' ') || 'unknown';
-                  
-                  const isDirectory = fileType.includes('directory') || fileType.includes('目录');
-                  const type: 'file' | 'directory' | 'link' | 'unknown' = isDirectory ? 'directory' : 'file';
-                  
-                  // 确定图标
-                  let icon = '?';
-                  if (type === 'directory') {
-                    icon = '📁';
-                  } else if (fileName.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash)$/i)) {
-                    icon = '文';
-                  } else if (fileName.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) {
-                    icon = '图';
-                  } else if (fileName.match(/\.(amr|apk|bin|so|exe)$/i)) {
-                    icon = '执';
-                  } else {
-                    icon = '文';
-                  }
-                  
-                  // 格式化大小
-                  let sizeFormatted = '';
-                  if (type === 'directory') {
-                    sizeFormatted = '<DIR>';
-                  } else if (size < 1024) {
-                    sizeFormatted = `${size} B`;
-                  } else if (size < 1024 * 1024) {
-                    sizeFormatted = `${(size / 1024).toFixed(1)} KB`;
-                  } else if (size < 1024 * 1024 * 1024) {
-                    sizeFormatted = `${(size / (1024 * 1024)).toFixed(1)} MB`;
-                  } else {
-                    sizeFormatted = `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-                  }
-                  
-                  files.push({
-                    name: fileName,
-                    type,
-                    size,
-                    sizeFormatted,
-                    modifiedTime,
-                    modifiedTimeFormatted: formatTime(modifiedTime),
-                    permissions: '-rw-r--r--',
-                    isHidden: fileName.startsWith('.'),
-                    fullPath: filePath,
-                    icon,
-                    isExecutable: false,
-                  });
-                } catch (statError) {
-                  console.warn(`获取文件信息失败: ${filePath}`, statError);
-                  // 创建基本文件信息
-                  const isDirectory = fileName.includes('/') ? false : true; // 简单判断
-                  files.push({
-                    name: fileName,
-                    type: isDirectory ? 'directory' : 'file',
-                    size: 0,
-                    sizeFormatted: isDirectory ? '<DIR>' : '0 B',
-                    modifiedTime: Math.floor(Date.now() / 1000),
-                    modifiedTimeFormatted: formatTime(Math.floor(Date.now() / 1000)),
-                    permissions: '-rw-r--r--',
-                    isHidden: fileName.startsWith('.'),
-                    fullPath: filePath,
-                    icon: isDirectory ? '📁' : '文',
-                    isExecutable: false,
-                  });
-                }
-              }
-              
-              this.fileList = files;
-              this.updateStats();
-              return;
-            } else {
-              console.warn('目录为空或命令无输出');
-              this.fileList = [];
-              return;
-            }
-          } catch (findError) {
-            console.error('find命令也失败:', findError);
-            showError(`无法加载目录: ${findError.message}`);
+          // 尝试简单命令
+          result = await Shell.exec(`cd "${path}" && ls`);
+          // 如果没有文件，设置为空
+          if (!result || result.trim() === '') {
             this.fileList = [];
+            this.updateStats();
             return;
           }
+          
+          // 处理简单的ls输出
+          const lines = result.trim().split('\n');
+          const files: FileItem[] = [];
+          
+          for (const fileName of lines) {
+            if (!fileName.trim() || fileName === '.') continue;
+            
+            const filePath = path === '/' ? `/${fileName}` : `${path}/${fileName}`;
+            
+            files.push(this.createSimpleFileItem(fileName, filePath, path));
+          }
+          
+          this.fileList = files;
+          this.updateStats();
+          return;
         }
         
         if (!result || result.trim() === '') {
           console.warn('目录为空或命令无输出');
           this.fileList = [];
+          this.updateStats();
           return;
         }
         
@@ -360,10 +377,9 @@ export default defineComponent({
         const files: FileItem[] = [];
         
         for (const line of fileLines) {
-          const file = this.parseFileLineImproved(line, path);
+          const file = this.parseFileLine(line, path);
           if (file) {
             files.push(file);
-            console.log('解析文件:', file.name, '类型:', file.type, '完整路径:', file.fullPath);
           }
         }
         
@@ -377,20 +393,51 @@ export default defineComponent({
         console.error('加载目录失败:', error);
         showError(`加载目录失败: ${error.message}`);
         this.fileList = [];
-        
-        // 尝试回退到根目录
-        if (this.currentPath !== '/') {
-          this.currentPath = '/';
-          await this.loadDirectory();
-        }
+        this.updateStats();
       } finally {
         this.isLoading = false;
         hideLoading();
       }
     },
     
-    // 改进的文件行解析方法，添加当前路径参数
-    parseFileLineImproved(line: string, currentPath: string): FileItem | null {
+    // 创建简单的文件项（当stat命令不可用时）
+    createSimpleFileItem(fileName: string, filePath: string, currentPath: string): FileItem {
+      // 尝试判断是否是目录
+      const isDirectory = !fileName.includes('.') || fileName.endsWith('/');
+      
+      const type: 'file' | 'directory' | 'link' | 'unknown' = isDirectory ? 'directory' : 'file';
+      
+      // 确定图标
+      let icon = '?';
+      if (type === 'directory') {
+        icon = '📁';
+      } else if (fileName.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash)$/i)) {
+        icon = '📄';
+      } else if (fileName.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) {
+        icon = '🖼️';
+      } else if (fileName.match(/\.(amr|apk|bin|so|exe)$/i)) {
+        icon = '⚙️';
+      } else {
+        icon = '📄';
+      }
+      
+      return {
+        name: fileName,
+        type,
+        size: 0,
+        sizeFormatted: type === 'directory' ? '<DIR>' : '0 B',
+        modifiedTime: Math.floor(Date.now() / 1000),
+        modifiedTimeFormatted: formatTime(Math.floor(Date.now() / 1000)),
+        permissions: '-rw-r--r--',
+        isHidden: fileName.startsWith('.'),
+        fullPath: filePath,
+        icon,
+        isExecutable: false,
+      };
+    },
+    
+    // 解析ls -la输出行
+    parseFileLine(line: string, currentPath: string): FileItem | null {
       if (!line.trim()) return null;
       
       // 跳过.和..
@@ -398,19 +445,12 @@ export default defineComponent({
         return null;
       }
       
-      // 尝试解析ls -la输出格式
-      // 格式示例: 
-      // drwxr-xr-x  2 root root 4096 Dec 25 12:00 directory_name
-      // -rw-r--r--  1 root root  123 Dec 25 12:00 file.txt
-      
       const parts = line.trim().split(/\s+/);
       if (parts.length < 9) return null;
       
       const permissions = parts[0];
       const nameIndex = parts.findIndex((part, index) => {
-        // 从第8个位置开始查找文件名
         if (index < 8) return false;
-        // 排除一些可能的日期部分
         if (part.match(/^\d+$/) && index <= 8) return false;
         return true;
       });
@@ -431,13 +471,13 @@ export default defineComponent({
         type = 'file';
         // 根据文件扩展名设置图标
         if (name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash)$/i)) {
-          icon = '文';
+          icon = '📄';
         } else if (name.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) {
-          icon = '图';
+          icon = '🖼️';
         } else if (name.match(/\.(amr|apk|bin|so|exe)$/i)) {
-          icon = '执';
+          icon = '⚙️';
         } else {
-          icon = '文';
+          icon = '📄';
         }
       } else if (typeChar === 'd') {
         type = 'directory';
@@ -451,7 +491,7 @@ export default defineComponent({
       let size = 0;
       let sizeFormatted = '';
       
-      // 尝试从行中查找大小字段（通常是第5个字段）
+      // 尝试从行中查找大小字段
       const sizeStr = parts[4];
       if (sizeStr && !isNaN(parseInt(sizeStr, 10))) {
         size = parseInt(sizeStr, 10);
@@ -467,49 +507,6 @@ export default defineComponent({
         sizeFormatted = `${(size / (1024 * 1024)).toFixed(1)} MB`;
       } else {
         sizeFormatted = `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-      }
-      
-      // 获取时间信息
-      let modifiedTime = Math.floor(Date.now() / 1000);
-      // 尝试解析时间字段（通常在第6、7、8个字段）
-      if (parts.length >= 9) {
-        const monthStr = parts[5];
-        const dayStr = parts[6];
-        const timeOrYearStr = parts[7];
-        
-        // 简单的日期解析
-        const now = new Date();
-        const currentYear = now.getFullYear();
-        
-        // 如果timeOrYearStr包含冒号，则是"HH:MM"格式，年份是当前年份
-        // 否则可能是年份
-        if (timeOrYearStr && timeOrYearStr.includes(':')) {
-          // 格式: "Dec 25 12:00"
-          const monthMap: {[key: string]: number} = {
-            'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
-            'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
-          };
-          
-          const month = monthMap[monthStr] || 0;
-          const day = parseInt(dayStr, 10) || 1;
-          const [hours, minutes] = timeOrYearStr.split(':').map(Number);
-          
-          const date = new Date(currentYear, month, day, hours || 0, minutes || 0);
-          modifiedTime = Math.floor(date.getTime() / 1000);
-        } else {
-          // 格式: "Dec 25  2023"
-          const monthMap: {[key: string]: number} = {
-            'Jan': 0, 'Feb': 1, 'Mar': 2, 'Apr': 3, 'May': 4, 'Jun': 5,
-            'Jul': 6, 'Aug': 7, 'Sep': 8, 'Oct': 9, 'Nov': 10, 'Dec': 11
-          };
-          
-          const month = monthMap[monthStr] || 0;
-          const day = parseInt(dayStr, 10) || 1;
-          const year = parseInt(timeOrYearStr, 10) || currentYear;
-          
-          const date = new Date(year, month, day);
-          modifiedTime = Math.floor(date.getTime() / 1000);
-        }
       }
       
       // 判断是否为隐藏文件
@@ -531,8 +528,8 @@ export default defineComponent({
         type,
         size,
         sizeFormatted,
-        modifiedTime,
-        modifiedTimeFormatted: formatTime(modifiedTime),
+        modifiedTime: Math.floor(Date.now() / 1000), // 简化时间处理
+        modifiedTimeFormatted: '刚刚',
         permissions,
         isHidden,
         fullPath,
@@ -549,17 +546,16 @@ export default defineComponent({
       this.totalSize = this.fileList
         .filter(file => file.type === 'file')
         .reduce((sum, file) => sum + file.size, 0);
-      
-      this.selectedCount = 0;
     },
     
-    // 打开文件或目录 - 现在应该能正常打开所有目录
+    // 打开文件或目录
     async openItem(item: FileItem) {
       console.log('打开项目:', item.name, '类型:', item.type, '路径:', item.fullPath);
       
       if (item.type === 'directory') {
         // 进入目录
         this.currentPath = item.fullPath;
+        this.selectedTreePath = item.fullPath;
         console.log('切换到目录:', this.currentPath);
         await this.loadDirectory();
       } else {
@@ -604,6 +600,7 @@ export default defineComponent({
       
       const oldPath = this.currentPath;
       this.currentPath = this.parentPath;
+      this.selectedTreePath = this.parentPath;
       console.log('从', oldPath, '切换到', this.currentPath);
       
       await this.loadDirectory();
@@ -616,7 +613,7 @@ export default defineComponent({
       showSuccess('目录已刷新');
     },
     
-    // 创建新文件 - 添加权限检查
+    // 创建新文件
     async createNewFile() {
       // 检查当前路径是否在/userdisk目录下
       if (!this.isInUserDisk) {
@@ -662,7 +659,7 @@ export default defineComponent({
       );
     },
     
-    // 创建新目录 - 添加权限检查
+    // 创建新目录
     async createNewDirectory() {
       // 检查当前路径是否在/userdisk目录下
       if (!this.isInUserDisk) {
@@ -708,7 +705,7 @@ export default defineComponent({
       );
     },
     
-    // 删除文件/目录 - 添加权限检查
+    // 删除文件/目录
     async deleteItem(item: FileItem) {
       // 检查文件是否在/userdisk目录下
       if (!this.isFileInUserDisk(item.fullPath)) {
@@ -747,7 +744,7 @@ export default defineComponent({
       };
     },
     
-    // 重命名文件/目录 - 添加权限检查
+    // 重命名文件/目录
     async renameItem(item: FileItem) {
       // 检查文件是否在/userdisk目录下
       if (!this.isFileInUserDisk(item.fullPath)) {
@@ -851,28 +848,9 @@ export default defineComponent({
       return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
     },
     
-    // 获取文件图标类
-    getFileIconClass(file: FileItem): string {
-      let baseClass = 'file-icon';
-      
-      if (file.type === 'directory') {
-        return `${baseClass} file-icon-folder`;
-      }
-      
-      // 根据文件扩展名设置图标
-      if (file.name.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) {
-        return `${baseClass} file-icon-image`;
-      }
-      
-      if (file.name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm)$/i)) {
-        return `${baseClass} file-icon-text`;
-      }
-      
-      if (file.isExecutable || file.name.match(/\.(sh|bash|amr|apk|bin|so)$/i)) {
-        return `${baseClass} file-icon-executable`;
-      }
-      
-      return `${baseClass} file-icon-file`;
+    // 获取文件图标
+    getFileIcon(file: FileItem): string {
+      return file.icon;
     },
     
     // 处理文件保存事件
@@ -913,15 +891,24 @@ export default defineComponent({
       this.confirmCallback = null;
     },
     
-    // 返回主页
-    goToHome() {
-      $falcon.navTo('index', {});
-    },
-    
     // 隐藏初始化错误
     hideInitError() {
       this.showInitError = false;
       this.initErrorMessage = '';
+    },
+    
+    // 切换布局模式
+    toggleLayout() {
+      this.isWideScreen = !this.isWideScreen;
+    },
+    
+    // 选择目录树项目
+    selectTreeItem(item: FileItem) {
+      this.selectedTreePath = item.fullPath;
+      if (item.type === 'directory') {
+        this.currentPath = item.fullPath;
+        this.loadDirectory();
+      }
     },
   },
 });
