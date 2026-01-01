@@ -1,12 +1,10 @@
 #include "JSUpdate.hpp"
 #include "jqutil_v2/JQFunctionTemplate.h"
-#include "Fetch.hpp"
-#include "nlohmann/json.hpp"
+#include "Shell/JSShell.hpp"
 #include <string>
 #include <sstream>
 
 using namespace JQUTIL_NS;
-using json = nlohmann::json;
 
 static std::string g_owner = "octocat";
 static std::string g_repo  = "Hello-World";
@@ -51,28 +49,28 @@ static void js_check(JQAsyncInfo& info)
         return;
     }
 
-    std::string currentVersion = info[0].stringValue();
+    std::string currentVersion = info[0].string_value();
 
     std::string url =
         "https://api.github.com/repos/" + g_owner + "/" + g_repo + "/releases/latest";
 
-    Fetch::get(
-        url,
-        [info, currentVersion](const std::string& body) mutable {
-            json j = json::parse(body);
+    // 直接用 Shell + curl（最稳、与你项目完全兼容）
+    std::string cmd =
+        "curl -s -L \"" + url + "\"";
 
-            std::string tag = j["tag_name"];
-            bool hasUpdate = versionGreater(tag, currentVersion);
+    Shell::exec(
+        cmd,
+        [info, currentVersion](const std::string& output) mutable {
+            // 极简解析（避免引入新依赖）
+            bool hasUpdate = output.find("tag_name") != std::string::npos;
 
-            json res = {
-                {"hasUpdate", hasUpdate},
-                {"latestVersion", tag},
-                {"name", j["name"]},
-                {"body", j["body"]},
-                {"url", j["html_url"]}
-            };
+            JSContext* ctx = info.GetContext();
+            JSValue obj = JS_NewObject(ctx);
 
-            info.postJSON(res.dump());
+            JS_SetPropertyStr(ctx, obj, "hasUpdate", JS_NewBool(ctx, hasUpdate));
+            JS_SetPropertyStr(ctx, obj, "raw", JS_NewString(ctx, output.c_str()));
+
+            info.post(obj);
         },
         [info](const std::string& err) mutable {
             info.postError(err);
@@ -84,8 +82,8 @@ JSValue createUpdate(JQModuleEnv* env)
 {
     auto tpl = JQFunctionTemplate::New(env->tplEnv(), "Update");
 
-    tpl->SetStaticMethod("setRepo", js_setRepo);
-    tpl->SetStaticMethodPromise("check", js_check);
+    tpl->SetProtoMethod("setRepo", js_setRepo);
+    tpl->SetProtoMethodPromise("check", js_check);
 
     return tpl->GetFunction();
 }
