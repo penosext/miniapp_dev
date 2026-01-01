@@ -1,41 +1,32 @@
 #include "JSUpdate.hpp"
 #include "Fetch.hpp"
-#include <Exceptions/AssertFailed.hpp>
-#include <Exceptions/NetworkError.hpp>
+#include "Exceptions/AssertFailed.hpp"
+#include "Exceptions/NetworkError.hpp"
+#include "strUtils.hpp"
 #include <iostream>
 #include <sstream>
 #include <regex>
-#include <filesystem>
 #include <fstream>
 #include <sys/stat.h>
 #include <unistd.h>
-
-namespace fs = std::filesystem;
+#include <sys/types.h>
+#include <dirent.h>
+#include <ctime>
 
 using namespace JQUTIL_NS;
 
-JSUpdate::JSUpdate() {
-    // 初始化默认下载路径
-    UpdateConfig cfg;
-    cfg.downloadPath = "/userdisk/downloads";
-    cfg.currentVersion = "1.0.0";
-    setConfig(cfg);
-    
+JSUpdate::JSUpdate() : 
+    owner("octocat"),
+    repo("Hello-World"),
+    downloadPath("/userdisk/downloads"),
+    currentVersion("1.0.0"),
+    filterPattern(".*\\.(tar\\.gz|zip|apk|bin)$")
+{
     // 创建下载目录
-    fs::create_directories(cfg.downloadPath);
+    system(("mkdir -p " + downloadPath).c_str());
 }
 
 JSUpdate::~JSUpdate() = default;
-
-UpdateConfig JSUpdate::getConfig() {
-    std::lock_guard<std::mutex> lock(configMutex);
-    return config;
-}
-
-void JSUpdate::setConfig(const UpdateConfig& newConfig) {
-    std::lock_guard<std::mutex> lock(configMutex);
-    config = newConfig;
-}
 
 bool JSUpdate::versionGreater(const std::string& a, const std::string& b) {
     std::regex versionRegex(R"((\d+)\.(\d+)\.(\d+))");
@@ -59,15 +50,15 @@ bool JSUpdate::versionGreater(const std::string& a, const std::string& b) {
 bool JSUpdate::downloadFile(const std::string& url, const std::string& savePath) {
     try {
         FetchOptions options;
-        options.timeout = 300; // 5分钟超时
+        options.timeout = 300;
         options.headers["User-Agent"] = "miniapp-updater/1.0";
         
         Response response = Fetch::fetch(url, options);
         
         if (response.isOk()) {
             // 确保目录存在
-            fs::path filePath(savePath);
-            fs::create_directories(filePath.parent_path());
+            std::string dirCmd = "mkdir -p $(dirname " + savePath + ")";
+            system(dirCmd.c_str());
             
             // 写入文件
             std::ofstream file(savePath, std::ios::binary);
@@ -108,34 +99,50 @@ std::string JSUpdate::execShell(const std::string& cmd) {
 void JSUpdate::setRepo(JQFunctionInfo& info) {
     try {
         ASSERT(info.Length() >= 1);
-        ASSERT(info[0].is_object());
-        
         JSContext* ctx = info.GetContext();
+        
+        // 检查是否是对象
+        if (!JS_IsObject(ctx, info[0])) {
+            info.GetReturnValue().ThrowInternalError("First argument must be an object");
+            return;
+        }
+        
         JSValue configObj = info[0];
         
-        UpdateConfig cfg = getConfig();
+        std::lock_guard<std::mutex> lock(configMutex);
         
         // 获取owner
         JSValue ownerVal = JS_GetPropertyStr(ctx, configObj, "owner");
         if (!JS_IsUndefined(ownerVal)) {
-            cfg.owner = JQString(ctx, ownerVal).getString();
+            const char* ownerStr = JS_ToCString(ctx, ownerVal);
+            if (ownerStr) {
+                owner = ownerStr;
+                JS_FreeCString(ctx, ownerStr);
+            }
             JS_FreeValue(ctx, ownerVal);
         }
         
         // 获取repo
         JSValue repoVal = JS_GetPropertyStr(ctx, configObj, "repo");
         if (!JS_IsUndefined(repoVal)) {
-            cfg.repo = JQString(ctx, repoVal).getString();
+            const char* repoStr = JS_ToCString(ctx, repoVal);
+            if (repoStr) {
+                repo = repoStr;
+                JS_FreeCString(ctx, repoStr);
+            }
             JS_FreeValue(ctx, repoVal);
         }
         
         // 获取下载路径
         JSValue pathVal = JS_GetPropertyStr(ctx, configObj, "downloadPath");
         if (!JS_IsUndefined(pathVal)) {
-            std::string newPath = JQString(ctx, pathVal).getString();
-            if (!newPath.empty()) {
-                cfg.downloadPath = newPath;
-                fs::create_directories(newPath);
+            const char* pathStr = JS_ToCString(ctx, pathVal);
+            if (pathStr) {
+                downloadPath = pathStr;
+                // 创建目录
+                std::string cmd = "mkdir -p " + downloadPath;
+                system(cmd.c_str());
+                JS_FreeCString(ctx, pathStr);
             }
             JS_FreeValue(ctx, pathVal);
         }
@@ -143,18 +150,24 @@ void JSUpdate::setRepo(JQFunctionInfo& info) {
         // 获取当前版本
         JSValue versionVal = JS_GetPropertyStr(ctx, configObj, "currentVersion");
         if (!JS_IsUndefined(versionVal)) {
-            cfg.currentVersion = JQString(ctx, versionVal).getString();
+            const char* versionStr = JS_ToCString(ctx, versionVal);
+            if (versionStr) {
+                currentVersion = versionStr;
+                JS_FreeCString(ctx, versionStr);
+            }
             JS_FreeValue(ctx, versionVal);
         }
         
         // 获取文件过滤模式
         JSValue filterVal = JS_GetPropertyStr(ctx, configObj, "filterPattern");
         if (!JS_IsUndefined(filterVal)) {
-            cfg.filterPattern = JQString(ctx, filterVal).getString();
+            const char* filterStr = JS_ToCString(ctx, filterVal);
+            if (filterStr) {
+                filterPattern = filterStr;
+                JS_FreeCString(ctx, filterStr);
+            }
             JS_FreeValue(ctx, filterVal);
         }
-        
-        setConfig(cfg);
         
         info.GetReturnValue().Set(true);
     } catch (const std::exception& e) {
@@ -162,16 +175,13 @@ void JSUpdate::setRepo(JQFunctionInfo& info) {
     }
 }
 
-// 检查更新（同步版本）
-void JSUpdate::check(JQFunctionInfo& info) {
+// 检查更新（异步版本）
+void JSUpdate::check(JQAsyncInfo& info) {
     try {
-        ASSERT(info.Length() == 0);
-        
-        UpdateConfig cfg = getConfig();
+        std::lock_guard<std::mutex> lock(configMutex);
         
         // 构建GitHub API URL
-        std::string url = "https://api.github.com/repos/" + 
-                         cfg.owner + "/" + cfg.repo + "/releases/latest";
+        std::string url = "https://api.github.com/repos/" + owner + "/" + repo + "/releases/latest";
         
         FetchOptions options;
         options.headers["User-Agent"] = "miniapp-updater/1.0";
@@ -181,7 +191,7 @@ void JSUpdate::check(JQFunctionInfo& info) {
         Response response = Fetch::fetch(url, options);
         
         if (!response.isOk()) {
-            info.GetReturnValue().Set(Bson::object{
+            info.post(Bson::object{
                 {"success", false},
                 {"error", "HTTP " + std::to_string(response.status)}
             });
@@ -189,12 +199,12 @@ void JSUpdate::check(JQFunctionInfo& info) {
         }
         
         try {
-            nlohmann::json releaseInfo = response.json();
+            nlohmann::json releaseInfo = nlohmann::json::parse(response.body);
             
             Bson::object result = {
                 {"success", true},
                 {"hasUpdate", false},
-                {"currentVersion", cfg.currentVersion},
+                {"currentVersion", currentVersion},
                 {"latestVersion", ""},
                 {"releaseNotes", ""},
                 {"downloadUrl", ""},
@@ -203,16 +213,17 @@ void JSUpdate::check(JQFunctionInfo& info) {
             };
             
             if (releaseInfo.contains("tag_name")) {
-                std::string latestVersion = releaseInfo["tag_name"];
+                std::string latestVersion = releaseInfo["tag_name"].get<std::string>();
                 result["latestVersion"] = latestVersion;
                 
                 // 去除版本号前的"v"前缀（如果有）
-                if (latestVersion.size() > 0 && latestVersion[0] == 'v') {
-                    latestVersion = latestVersion.substr(1);
+                std::string cleanVersion = latestVersion;
+                if (cleanVersion.size() > 0 && cleanVersion[0] == 'v') {
+                    cleanVersion = cleanVersion.substr(1);
                 }
                 
                 // 检查是否有新版本
-                if (versionGreater(latestVersion, cfg.currentVersion)) {
+                if (versionGreater(cleanVersion, currentVersion)) {
                     result["hasUpdate"] = true;
                 }
                 
@@ -228,7 +239,7 @@ void JSUpdate::check(JQFunctionInfo& info) {
                 
                 // 查找可下载的asset
                 if (releaseInfo.contains("assets") && releaseInfo["assets"].is_array()) {
-                    std::regex filterRegex(cfg.filterPattern);
+                    std::regex filterRegex(filterPattern);
                     
                     for (const auto& asset : releaseInfo["assets"]) {
                         if (asset.contains("browser_download_url") && 
@@ -250,30 +261,30 @@ void JSUpdate::check(JQFunctionInfo& info) {
                 }
             }
             
-            info.GetReturnValue().Set(result);
+            info.post(result);
             
         } catch (const nlohmann::json::parse_error& e) {
-            info.GetReturnValue().Set(Bson::object{
+            info.post(Bson::object{
                 {"success", false},
                 {"error", "JSON parse error: " + std::string(e.what())}
             });
         }
         
     } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
+        info.post(Bson::object{
+            {"success", false},
+            {"error", e.what()}
+        });
     }
 }
 
 // 下载更新文件（异步版本）
 void JSUpdate::download(JQAsyncInfo& info) {
     try {
-        ASSERT(info.Length() == 0);
-        
-        UpdateConfig cfg = getConfig();
+        std::lock_guard<std::mutex> lock(configMutex);
         
         // 先检查更新以获取下载URL
-        std::string checkUrl = "https://api.github.com/repos/" + 
-                              cfg.owner + "/" + cfg.repo + "/releases/latest";
+        std::string checkUrl = "https://api.github.com/repos/" + owner + "/" + repo + "/releases/latest";
         
         FetchOptions checkOptions;
         checkOptions.headers["User-Agent"] = "miniapp-updater/1.0";
@@ -289,13 +300,13 @@ void JSUpdate::download(JQAsyncInfo& info) {
             return;
         }
         
-        nlohmann::json releaseInfo = checkResponse.json();
+        nlohmann::json releaseInfo = nlohmann::json::parse(checkResponse.body);
         
         std::string downloadUrl;
         std::string assetName;
         
         if (releaseInfo.contains("assets") && releaseInfo["assets"].is_array()) {
-            std::regex filterRegex(cfg.filterPattern);
+            std::regex filterRegex(filterPattern);
             
             for (const auto& asset : releaseInfo["assets"]) {
                 if (asset.contains("browser_download_url") && 
@@ -321,7 +332,7 @@ void JSUpdate::download(JQAsyncInfo& info) {
         }
         
         // 构建保存路径
-        std::string savePath = cfg.downloadPath + "/" + assetName;
+        std::string savePath = downloadPath + "/" + assetName;
         
         // 开始下载
         FetchOptions downloadOptions;
@@ -338,10 +349,11 @@ void JSUpdate::download(JQAsyncInfo& info) {
             return;
         }
         
-        // 保存文件
-        fs::path filePath(savePath);
-        fs::create_directories(filePath.parent_path());
+        // 确保目录存在
+        std::string dirCmd = "mkdir -p " + downloadPath;
+        system(dirCmd.c_str());
         
+        // 保存文件
         std::ofstream file(savePath, std::ios::binary);
         if (!file) {
             info.post(Bson::object{
@@ -357,22 +369,19 @@ void JSUpdate::download(JQAsyncInfo& info) {
         // 设置文件权限
         chmod(savePath.c_str(), 0644);
         
-        // 返回下载信息
+        // 获取文件大小
         struct stat fileStat;
+        int fileSize = 0;
         if (stat(savePath.c_str(), &fileStat) == 0) {
-            info.post(Bson::object{
-                {"success", true},
-                {"path", savePath},
-                {"size", static_cast<int>(fileStat.st_size)},
-                {"assetName", assetName}
-            });
-        } else {
-            info.post(Bson::object{
-                {"success", true},
-                {"path", savePath},
-                {"assetName", assetName}
-            });
+            fileSize = static_cast<int>(fileStat.st_size);
         }
+        
+        info.post(Bson::object{
+            {"success", true},
+            {"path", savePath},
+            {"size", fileSize},
+            {"assetName", assetName}
+        });
         
     } catch (const std::exception& e) {
         info.post(Bson::object{
@@ -382,74 +391,86 @@ void JSUpdate::download(JQAsyncInfo& info) {
     }
 }
 
-// 获取当前配置
-void JSUpdate::getCurrentConfig(JQFunctionInfo& info) {
+// 获取当前配置（异步版本）
+void JSUpdate::getConfig(JQAsyncInfo& info) {
     try {
-        ASSERT(info.Length() == 0);
+        std::lock_guard<std::mutex> lock(configMutex);
         
-        UpdateConfig cfg = getConfig();
-        
-        info.GetReturnValue().Set(Bson::object{
-            {"owner", cfg.owner},
-            {"repo", cfg.repo},
-            {"downloadPath", cfg.downloadPath},
-            {"currentVersion", cfg.currentVersion},
-            {"filterPattern", cfg.filterPattern}
+        info.post(Bson::object{
+            {"owner", owner},
+            {"repo", repo},
+            {"downloadPath", downloadPath},
+            {"currentVersion", currentVersion},
+            {"filterPattern", filterPattern}
         });
         
     } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
+        info.post(Bson::object{
+            {"success", false},
+            {"error", e.what()}
+        });
     }
 }
 
-// 清理下载目录
+// 清理下载目录（同步版本）
 void JSUpdate::cleanup(JQFunctionInfo& info) {
     try {
-        ASSERT(info.Length() <= 1);
-        
         int maxAgeDays = 7; // 默认保留7天内的文件
-        if (info.Length() == 1 && info[0].is_int32()) {
-            maxAgeDays = info[0].int32_value();
+        
+        if (info.Length() >= 1) {
+            JSContext* ctx = info.GetContext();
+            // 检查是否是整数
+            int isInt = JS_IsNumber(ctx, info[0]);
+            if (isInt) {
+                int32_t days;
+                JS_ToInt32(ctx, &days, info[0]);
+                if (days > 0) {
+                    maxAgeDays = days;
+                }
+            }
         }
         
-        UpdateConfig cfg = getConfig();
+        std::lock_guard<std::mutex> lock(configMutex);
         
         int deletedCount = 0;
         int errorCount = 0;
-        std::time_t now = std::time(nullptr);
-        std::time_t cutoffTime = now - (maxAgeDays * 24 * 3600);
+        time_t now = time(nullptr);
+        time_t cutoffTime = now - (maxAgeDays * 24 * 3600);
         
-        try {
-            for (const auto& entry : fs::directory_iterator(cfg.downloadPath)) {
-                if (fs::is_regular_file(entry.path())) {
-                    auto lastWriteTime = fs::last_write_time(entry.path());
-                    auto timeT = decltype(lastWriteTime)::clock::to_time_t(lastWriteTime);
+        // 使用opendir/readdir来遍历目录
+        DIR* dir = opendir(downloadPath.c_str());
+        if (dir) {
+            struct dirent* entry;
+            while ((entry = readdir(dir)) != nullptr) {
+                if (entry->d_type == DT_REG) { // 普通文件
+                    std::string filePath = downloadPath + "/" + entry->d_name;
                     
-                    if (timeT < cutoffTime) {
-                        if (fs::remove(entry.path())) {
-                            deletedCount++;
-                        } else {
-                            errorCount++;
+                    struct stat fileStat;
+                    if (stat(filePath.c_str(), &fileStat) == 0) {
+                        if (fileStat.st_mtime < cutoffTime) {
+                            if (remove(filePath.c_str()) == 0) {
+                                deletedCount++;
+                            } else {
+                                errorCount++;
+                            }
                         }
                     }
                 }
             }
-            
-            info.GetReturnValue().Set(Bson::object{
-                {"success", true},
-                {"deleted", deletedCount},
-                {"errors", errorCount}
-            });
-            
-        } catch (const fs::filesystem_error& e) {
-            info.GetReturnValue().Set(Bson::object{
-                {"success", false},
-                {"error", e.what()}
-            });
+            closedir(dir);
         }
         
+        info.GetReturnValue().Set(Bson::object{
+            {"success", true},
+            {"deleted", deletedCount},
+            {"errors", errorCount}
+        });
+        
     } catch (const std::exception& e) {
-        info.GetReturnValue().ThrowInternalError(e.what());
+        info.GetReturnValue().Set(Bson::object{
+            {"success", false},
+            {"error", e.what()}
+        });
     }
 }
 
@@ -462,17 +483,12 @@ JSValue createUpdate(JQModuleEnv* env)
         return new JSUpdate();
     });
     
-    // 设置对象析构器
-    tpl->InstanceTemplate()->setObjectDestroyer([](void* data) {
-        delete static_cast<JSUpdate*>(data);
-    });
-    
     // 注册方法
     tpl->SetProtoMethod("setRepo", &JSUpdate::setRepo);
-    tpl->SetProtoMethod("check", &JSUpdate::check);
-    tpl->SetProtoMethod("getConfig", &JSUpdate::getCurrentConfig);  // 注意这里重命名了
     tpl->SetProtoMethod("cleanup", &JSUpdate::cleanup);
+    tpl->SetProtoMethodPromise("check", &JSUpdate::check);
     tpl->SetProtoMethodPromise("download", &JSUpdate::download);
+    tpl->SetProtoMethodPromise("getConfig", &JSUpdate::getConfig);
     
     // 初始化模板
     JSUpdate::InitTpl(tpl);
