@@ -66,6 +66,10 @@ export default defineComponent({
       totalFiles: 0,
       totalSize: 0,
       selectedCount: 0,
+      
+      // 错误状态
+      initErrorMessage: '',
+      showInitError: false,
     };
   },
 
@@ -141,19 +145,40 @@ export default defineComponent({
       return filePath.startsWith('/userdisk');
     },
     
-    // 初始化Shell
+    // 初始化Shell - 确保错误提示显示
     async initializeShell() {
       try {
+        console.log('开始初始化Shell模块...');
+        
         if (!Shell) {
-          throw new Error('Shell对象未定义');
+          const errorMsg = 'Shell对象未定义，请检查模块导入';
+          console.error('Shell初始化失败:', errorMsg);
+          this.showInitError = true;
+          this.initErrorMessage = errorMsg;
+          showError(`Shell模块初始化失败: ${errorMsg}`);
+          this.shellInitialized = false;
+          return;
         }
         
         if (typeof Shell.initialize !== 'function') {
-          throw new Error('Shell.initialize方法不存在');
+          const errorMsg = 'Shell.initialize方法不存在';
+          console.error('Shell初始化失败:', errorMsg);
+          this.showInitError = true;
+          this.initErrorMessage = errorMsg;
+          showError(`Shell模块初始化失败: ${errorMsg}`);
+          this.shellInitialized = false;
+          return;
         }
         
+        // 显示加载提示
+        showLoading();
+        
+        console.log('正在初始化Shell模块...');
         await Shell.initialize();
+        
         this.shellInitialized = true;
+        this.showInitError = false;
+        this.initErrorMessage = '';
         console.log('Shell模块初始化成功');
         
         // 加载当前目录
@@ -161,15 +186,21 @@ export default defineComponent({
         
       } catch (error: any) {
         console.error('Shell模块初始化失败:', error);
-        showError(`Shell模块初始化失败: ${error.message}`);
+        this.showInitError = true;
+        this.initErrorMessage = error.message || '未知错误';
+        
+        // 显示红色错误弹窗
+        showError(`Shell模块初始化失败: ${error.message || '请检查系统配置'}`);
         this.shellInitialized = false;
+      } finally {
+        hideLoading();
       }
     },
     
     // 加载目录 - 改进版本，修复根目录显示问题
     async loadDirectory() {
       if (!this.shellInitialized || !Shell) {
-        showError('Shell模块未初始化');
+        showError('Shell模块未初始化，无法加载目录');
         return;
       }
       
@@ -873,6 +904,12 @@ export default defineComponent({
     // 返回主页
     goToHome() {
       $falcon.navTo('index', {});
+    },
+    
+    // 隐藏初始化错误
+    hideInitError() {
+      this.showInitError = false;
+      this.initErrorMessage = '';
     },
   },
 });
