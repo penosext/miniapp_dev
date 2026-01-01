@@ -18,96 +18,122 @@
 -->
 
 <template>
-  <div>
-    <scroller class="container" scroll-direction="vertical" :show-scrollbar="true">
-      <!-- 初始化错误提示 -->
-      <div v-if="showInitError" class="section section-error">
-        <text class="section-title section-title-error">Shell初始化失败</text>
-        <div class="item">
-          <text class="item-text" style="color: #ff4444; white-space: normal;">{{ initErrorMessage }}</text>
-        </div>
-        <div class="operations-grid">
-          <text @click="initializeShell" class="operation-btn operation-btn-primary">重试初始化</text>
-          <text @click="hideInitError" class="operation-btn">关闭提示</text>
-        </div>
+  <div class="mt-file-manager">
+    <!-- 顶部操作栏 -->
+    <div class="top-bar">
+      <div class="path-bar">
+        <text class="path-text" @click="goBack" :class="{'disabled': !canGoBack}">
+          {{ canGoBack ? '←' : '' }}
+        </text>
+        <text class="path-text">{{ currentPath }}</text>
+        <text class="path-btn" @click="refreshDirectory">↻</text>
       </div>
       
-      <!-- 路径和操作栏 -->
-      <div class="section">
-        <text class="section-title">文件管理器</text>
-        
-        <div class="item">
-          <text class="item-text">当前路径:</text>
-          <text class="file-path">{{ currentPath }}</text>
-          <text @click="goBack" :class="'btn' + (canGoBack ? ' btn-primary' : ' btn-disabled')">返回上级</text>
-        </div>
-        
-        <div class="item">
-          <text class="item-text">搜索文件:</text>
-          <text class="item-input" @click="searchFiles">{{ searchKeyword || '点击搜索文件...' }}</text>
-          <text v-if="searchKeyword" @click="clearSearch" class="btn btn-danger">清除</text>
-        </div>
-        
-        <div class="item">
-          <text class="item-text">统计信息:</text>
-          <text class="file-stats">{{ totalFiles }} 个项目, {{ formatSize(totalSize) }}</text>
-          <text @click="toggleHiddenFiles" :class="'btn' + (showHiddenFiles ? ' btn-warning' : '')">
-            {{ showHiddenFiles ? '隐藏' : '显示' }}隐藏文件
-          </text>
-        </div>
-        
-        <div class="item" v-if="!isInUserDisk">
-          <text class="item-text" style="color: #ffc107;">权限提示:</text>
-          <text class="item-text" style="color: #ffc107; flex: 2;">当前目录为只读，只能在/userdisk目录下创建、删除、重命名</text>
-        </div>
+      <div class="action-bar">
+        <text class="action-btn" @click="searchFiles">🔍</text>
+        <text class="action-btn" @click="toggleHiddenFiles">{{ showHiddenFiles ? '👁️' : '👁️‍🗨️' }}</text>
+        <text class="action-btn" @click="createNewFile" :class="{'disabled': !isInUserDisk}">📄</text>
+        <text class="action-btn" @click="createNewDirectory" :class="{'disabled': !isInUserDisk}">📁</text>
+        <text class="action-btn" @click="$falcon.navTo('index', {})">🏠</text>
       </div>
-      
-      <!-- 操作按钮 -->
-      <div class="section">
-        <text class="section-title">文件操作</text>
-        <div class="operations-grid">
-          <text @click="createNewFile" :class="'operation-btn' + (isInUserDisk ? ' operation-btn-success' : ' btn-disabled')">新建文件</text>
-          <text @click="createNewDirectory" :class="'operation-btn' + (isInUserDisk ? ' operation-btn-success' : ' btn-disabled')">新建目录</text>
-          <text @click="refreshDirectory" class="operation-btn operation-btn-primary">刷新目录</text>
-          <text @click="goBack" :class="'operation-btn' + (canGoBack ? ' operation-btn-primary' : ' btn-disabled')">返回上级</text>
-        </div>
-      </div>
-      
-      <!-- 文件列表 -->
-      <div class="section">
-        <text class="section-title">文件列表</text>
-        
-        <div v-if="filteredFiles.length === 0" class="file-empty">
-          <text class="empty-title">目录为空</text>
-          <text v-if="searchKeyword" class="empty-description">没有找到匹配的文件</text>
-          <text v-else class="empty-description">点击上方按钮创建文件或目录</text>
-        </div>
-        
-        <div v-for="file in filteredFiles" :key="file.fullPath" 
-             class="file-item" 
-             @click="openItem(file)"
-             @longpress="showFileProperties(file)">
-          
-          <text :class="getFileIconClass(file)">{{ file.icon }}</text>
-          <text class="file-name">{{ file.name }}</text>
-          <text class="file-size">{{ file.sizeFormatted }}</text>
-          <text class="file-date">{{ file.modifiedTimeFormatted }}</text>
-          
-          <div class="file-actions">
-            <text @click.stop="renameItem(file)" :class="'btn' + (isFileInUserDisk(file.fullPath) ? ' btn-warning' : ' btn-disabled')">重命名</text>
-            <text @click.stop="deleteItem(file)" :class="'btn' + (isFileInUserDisk(file.fullPath) ? ' btn-danger' : ' btn-disabled')">删除</text>
+    </div>
+    
+    <!-- 权限提示 -->
+    <div v-if="!isInUserDisk" class="permission-warning">
+      <text class="warning-text">当前目录为只读，只能在/userdisk目录下创建、删除、重命名</text>
+    </div>
+    
+    <!-- 双栏布局 -->
+    <div class="main-layout" :class="{'wide': isWideScreen, 'narrow': !isWideScreen}">
+      <!-- 左侧目录树 -->
+      <div class="left-panel" v-if="isWideScreen">
+        <scroller class="directory-tree" scroll-direction="vertical" :show-scrollbar="true">
+          <text class="tree-title">目录树</text>
+          <div v-for="item in directoryTree" :key="item.fullPath" 
+               class="tree-item" 
+               :class="{'selected': selectedTreePath === item.fullPath}"
+               @click="selectTreeItem(item)">
+            <text class="tree-icon">{{ getFileIcon(item) }}</text>
+            <text class="tree-name">{{ item.name }}</text>
           </div>
-        </div>
+          
+          <div v-if="directoryTree.length === 0" class="empty-tree">
+            <text class="empty-text">目录树加载中...</text>
+          </div>
+        </scroller>
       </div>
-    </scroller>
+      
+      <!-- 右侧文件列表 -->
+      <div class="right-panel">
+        <scroller class="file-list" scroll-direction="vertical" :show-scrollbar="true">
+          <!-- 搜索状态 -->
+          <div v-if="searchKeyword" class="search-status">
+            <text class="search-text">搜索: {{ searchKeyword }}</text>
+            <text class="clear-search" @click="clearSearch">✕</text>
+          </div>
+          
+          <!-- 统计信息 -->
+          <div class="stats-bar">
+            <text class="stats-text">{{ totalFiles }} 个项目</text>
+            <text class="stats-text">{{ formatSize(totalSize) }}</text>
+            <text class="layout-toggle" @click="toggleLayout">
+              {{ isWideScreen ? '窄' : '宽' }}
+            </text>
+          </div>
+          
+          <!-- 文件列表 -->
+          <div v-if="filteredFiles.length === 0" class="empty-list">
+            <text class="empty-title">目录为空</text>
+            <text v-if="searchKeyword" class="empty-description">没有找到匹配的文件</text>
+            <text v-else class="empty-description">点击上方按钮创建文件或目录</text>
+          </div>
+          
+          <div v-for="file in filteredFiles" :key="file.fullPath" 
+               class="file-item" 
+               @click="openItem(file)"
+               @longpress="showFileProperties(file)">
+            
+            <div class="file-icon-container">
+              <text class="file-icon">{{ getFileIcon(file) }}</text>
+            </div>
+            
+            <div class="file-info">
+              <text class="file-name">{{ file.name }}</text>
+              <text class="file-details">{{ file.sizeFormatted }} • {{ file.modifiedTimeFormatted }}</text>
+            </div>
+            
+            <div class="file-actions">
+              <text v-if="file.type === 'directory'" class="file-action" @click.stop="openItem(file)">打开</text>
+              <text v-else class="file-action" @click.stop="openFile(file)">打开</text>
+              <text class="file-action" @click.stop="renameItem(file)" :class="{'disabled': !isFileInUserDisk(file.fullPath)}">重命名</text>
+              <text class="file-action delete" @click.stop="deleteItem(file)" :class="{'disabled': !isFileInUserDisk(file.fullPath)}">删除</text>
+            </div>
+          </div>
+        </scroller>
+      </div>
+    </div>
     
     <!-- 确认对话框 -->
     <div v-if="showConfirmModal" class="confirm-modal">
-      <text class="confirm-title">{{ confirmTitle }}</text>
-      <text class="confirm-message">{{ confirmMessage }}</text>
-      <div class="confirm-buttons">
-        <text @click="executeConfirmAction" class="toolbar-btn toolbar-btn-danger">确定</text>
-        <text @click="cancelConfirmAction" class="toolbar-btn">取消</text>
+      <div class="modal-content">
+        <text class="modal-title">{{ confirmTitle }}</text>
+        <text class="modal-message">{{ confirmMessage }}</text>
+        <div class="modal-buttons">
+          <text @click="executeConfirmAction" class="modal-btn modal-btn-danger">确定</text>
+          <text @click="cancelConfirmAction" class="modal-btn">取消</text>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 初始化错误提示 -->
+    <div v-if="showInitError" class="init-error">
+      <div class="error-content">
+        <text class="error-title">Shell初始化失败</text>
+        <text class="error-message">{{ initErrorMessage }}</text>
+        <div class="error-buttons">
+          <text @click="initializeShell" class="error-btn">重试</text>
+          <text @click="hideInitError" class="error-btn">关闭</text>
+        </div>
       </div>
     </div>
     
@@ -118,18 +144,6 @@
 
 <style lang="less" scoped>
 @import url('fileManager.less');
-
-/* 添加错误提示样式 */
-.section-error {
-  background-color: #331111;
-  border: 1px solid #ff4444;
-  border-radius: 5px;
-  margin-bottom: 10px;
-}
-
-.section-title-error {
-  color: #ff4444 !important;
-}
 </style>
 
 <script>
