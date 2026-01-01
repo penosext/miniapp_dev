@@ -1,914 +1,237 @@
-// Copyright (C) 2025 Langning Chen
-// 
-// This file is part of miniapp.
-// 
-// miniapp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-// 
-// miniapp is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-// 
-// You should have received a copy of the GNU General Public License
-// along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
-
 import { defineComponent } from 'vue';
 import { Shell } from 'langningchen';
-import { showError, showSuccess, showWarning, showInfo } from '../../components/ToastMessage';
-import { hideLoading, showLoading } from '../../components/Loading';
-import { openSoftKeyboard } from '../../utils/softKeyboardUtils';
-import { formatTime } from '../../utils/timeUtils';
 
-export type FileManagerOptions = {
-  path?: string;
-  refresh?: boolean;
-};
+// 命令结果接口
+interface CommandResult {
+  label: string;      // 命令显示标签
+  command: string;    // 执行的命令
+  result: string;     // 命令执行结果
+  showRaw?: boolean;  // 是否显示原始输出
+}
 
-export interface FileItem {
-  name: string;
-  type: 'file' | 'directory' | 'link' | 'unknown';
-  size: number;
-  sizeFormatted: string;
-  modifiedTime: number;
-  modifiedTimeFormatted: string;
-  permissions: string;
-  isHidden: boolean;
-  fullPath: string;
-  icon: string;
-  isExecutable: boolean;
+// 设备信息接口
+interface DeviceInfo {
+  ipAddress: CommandResult[];
+  deviceId: CommandResult[];
+  systemInfo: CommandResult[];
+  networkInfo: CommandResult[];
+  storageInfo: CommandResult[];
+  batteryPercent: CommandResult[];
+  
+  timestamp?: number;
+  error?: string;
 }
 
 export default defineComponent({
   data() {
     return {
-      $page: {} as FalconPage<FileManagerOptions>,
+      $page: {} as FalconPage<Record<string, any>>,
       
-      // 文件系统状态
-      currentPath: '/',
-      fileList: [] as FileItem[],
+      isLoading: true,
+      isRefreshing: false,
       shellInitialized: false,
-      isLoading: false,
       
-      // 目录树状态
-      directoryTree: [] as FileItem[],
-      selectedTreePath: '/',
+      deviceInfo: {
+        ipAddress: [],
+        deviceId: [],
+        systemInfo: [],
+        networkInfo: [],
+        storageInfo: [],
+        batteryPercent: [],
+      } as DeviceInfo,
       
-      // 操作状态
-      showConfirmModal: false,
-      confirmTitle: '',
-      confirmMessage: '',
-      confirmCallback: null as (() => void) | null,
+      shellModule: null as any,
       
-      // 搜索状态
-      searchKeyword: '',
-      showHiddenFiles: false,
-      
-      // 统计信息
-      totalFiles: 0,
-      totalSize: 0,
-      
-      // 错误状态
-      initErrorMessage: '',
-      showInitError: false,
-      
-      // 布局状态
-      isWideScreen: true, // 默认使用宽屏布局
+      // 命令配置（可以在这里添加/修改命令）
+      commandConfigs: {
+        ipAddress: [
+          { label: 'WLAN0 IP', command: "ip addr show wlan0 2>/dev/null | grep -m1 'inet ' | awk '{print $2}' | cut -d/ -f1" },
+          { label: 'ETH0 IP', command: "ip addr show eth0 2>/dev/null | grep -m1 'inet ' | awk '{print $2}' | cut -d/ -f1" },
+          { label: '所有IP地址', command: "hostname -I" },
+          { label: '公网IP', command: "curl -s ifconfig.me || curl -s ipinfo.io/ip || echo '无法获取'" },
+        ] as CommandResult[],
+        
+        deviceId: [
+          { label: 'UUID', command: 'cat /proc/sys/kernel/random/uuid', showRaw: true },
+          { label: '机器ID', command: 'cat /etc/machine-id', showRaw: true },
+          { label: '序列号', command: 'getprop ro.serialno || echo "N/A"' },
+          { label: '产品UUID', command: 'cat /sys/class/dmi/id/product_uuid 2>/dev/null || echo "N/A"', showRaw: true },
+          { label: '主机名', command: 'hostname' },
+        ] as CommandResult[],
+        
+        systemInfo: [
+          { label: '系统架构', command: 'uname -m' },
+          { label: '内核版本', command: 'uname -r' },
+          { label: '系统名称', command: 'uname -s' },
+          { label: '系统版本', command: 'cat /etc/os-release | grep PRETTY_NAME | cut -d= -f2 | tr -d \'"\' || uname -o' },
+          { label: 'CPU信息', command: 'cat /proc/cpuinfo | grep "model name" | head -1 | cut -d: -f2 | xargs' },
+          { label: '运行时间', command: 'uptime -p || uptime' },
+        ] as CommandResult[],
+        
+        networkInfo: [
+          { label: '网络接口', command: 'ip -4 addr show', showRaw: true },
+          { label: '路由表', command: 'ip route show', showRaw: true },
+          { label: 'DNS配置', command: 'cat /etc/resolv.conf 2>/dev/null || echo "未找到"' },
+          { label: '网络连接', command: 'ss -tunlp 2>/dev/null | head -20' },
+        ] as CommandResult[],
+        
+        storageInfo: [
+          { label: '根目录使用', command: 'df -h /', showRaw: true },
+          { label: '所有挂载点', command: 'df -h | head -20', showRaw: true },
+          { label: '内存使用', command: 'free -h', showRaw: true },
+          { label: '磁盘信息', command: 'lsblk 2>/dev/null | head -20' },
+        ] as CommandResult[],
+        
+        batteryPercent: [
+          { label: '电池容量', command: 'hal-battery 2>/dev/null | grep capacity || cat /sys/class/power_supply/BAT0/capacity 2>/dev/null || echo "N/A"' },
+          { label: '电池状态', command: 'cat /sys/class/power_supply/BAT0/status 2>/dev/null || echo "未知"' },
+          { label: '电池健康', command: 'cat /sys/class/power_supply/BAT0/health 2>/dev/null || echo "未知"' },
+        ] as CommandResult[],
+      },
     };
   },
 
-  async mounted() {
-    console.log('文件管理器页面加载...');
-    
-    // 获取初始路径
-    const options = this.$page.loadOptions;
-    this.currentPath = options.path || '/';
-    this.selectedTreePath = this.currentPath;
-    console.log('初始路径:', this.currentPath);
-    
-    // 设置页面返回键处理
+  mounted() {
     this.$page.$npage.setSupportBack(true);
-    this.$npage.on("backpressed", this.handleBackPress);
-    
-    // 监听文件保存事件
-    $falcon.on('file_saved', this.handleFileSaved);
-    
-    // 检查屏幕宽度，决定布局模式
-    this.checkScreenWidth();
-    
-    await this.initializeShell();
+    this.$page.$npage.on("backpressed", this.handleBackPress);
+    this.initializeAndLoad();
   },
 
   beforeDestroy() {
-    this.$npage.off("backpressed", this.handleBackPress);
-    $falcon.off('file_saved', this.handleFileSaved);
-  },
-
-  computed: {
-    filteredFiles(): FileItem[] {
-      let files = [...this.fileList];
-      
-      // 过滤隐藏文件
-      if (!this.showHiddenFiles) {
-        files = files.filter(file => !file.isHidden);
-      }
-      
-      // 过滤搜索关键词
-      if (this.searchKeyword) {
-        const keyword = this.searchKeyword.toLowerCase();
-        files = files.filter(file => file.name.toLowerCase().includes(keyword));
-      }
-      
-      // 排序：目录在前，文件在后，按名称排序
-      files.sort((a, b) => {
-        if (a.type === 'directory' && b.type !== 'directory') return -1;
-        if (a.type !== 'directory' && b.type === 'directory') return 1;
-        return a.name.localeCompare(b.name);
-      });
-      
-      return files;
-    },
-    
-    // 检查当前路径是否在/userdisk目录下
-    isInUserDisk(): boolean {
-      return this.currentPath.startsWith('/userdisk');
-    },
-    
-    // 获取当前路径的父路径
-    parentPath(): string {
-      if (this.currentPath === '/') return '/';
-      const parts = this.currentPath.split('/').filter(part => part);
-      if (parts.length === 0) return '/';
-      parts.pop();
-      return parts.length > 0 ? '/' + parts.join('/') : '/';
-    },
-    
-    // 检查是否可以返回上级
-    canGoBack(): boolean {
-      return this.currentPath !== '/';
-    },
+    this.$page.$npage.off("backpressed", this.handleBackPress);
   },
 
   methods: {
-    // 检查屏幕宽度
-    checkScreenWidth() {
-      // 简单判断，可以根据实际设备调整
-      this.isWideScreen = window.innerWidth > 768;
-    },
-    
-    // 检查文件是否在/userdisk目录下
-    isFileInUserDisk(filePath: string): boolean {
-      return filePath.startsWith('/userdisk');
-    },
-    
-    // 初始化Shell
-    async initializeShell() {
+    async initializeAndLoad() {
+      this.isLoading = true;
       try {
-        console.log('开始初始化Shell模块...');
-        
-        if (!Shell) {
-          const errorMsg = 'Shell对象未定义，请检查模块导入';
-          console.error('Shell初始化失败:', errorMsg);
-          this.showInitError = true;
-          this.initErrorMessage = errorMsg;
-          showError(`Shell模块初始化失败: ${errorMsg}`);
-          this.shellInitialized = false;
-          return;
-        }
-        
-        if (typeof Shell.initialize !== 'function') {
-          const errorMsg = 'Shell.initialize方法不存在';
-          console.error('Shell初始化失败:', errorMsg);
-          this.showInitError = true;
-          this.initErrorMessage = errorMsg;
-          showError(`Shell模块初始化失败: ${errorMsg}`);
-          this.shellInitialized = false;
-          return;
-        }
-        
-        // 显示加载提示
-        showLoading();
-        
-        console.log('正在初始化Shell模块...');
-        await Shell.initialize();
-        
-        this.shellInitialized = true;
-        this.showInitError = false;
-        this.initErrorMessage = '';
-        console.log('Shell模块初始化成功');
-        
-        // 加载根目录作为目录树
-        await this.loadRootDirectory();
-        
-        // 加载当前目录
-        await this.loadDirectory();
-        
+        await this.initializeShell();
+        await this.fetchAllCommands();
       } catch (error: any) {
-        console.error('Shell模块初始化失败:', error);
-        this.showInitError = true;
-        this.initErrorMessage = error.message || '未知错误';
-        
-        // 显示红色错误弹窗
-        showError(`Shell模块初始化失败: ${error.message || '请检查系统配置'}`);
-        this.shellInitialized = false;
-      } finally {
-        hideLoading();
-      }
-    },
-    
-    // 加载根目录作为目录树
-    async loadRootDirectory() {
-      if (!this.shellInitialized || !Shell) {
-        return;
-      }
-      
-      try {
-        console.log('加载根目录作为目录树...');
-        
-        // 获取根目录下的目录列表
-        const listCmd = `ls -la / | grep '^d' | head -20`; // 只获取前20个目录
-        let result = '';
-        
-        try {
-          result = await Shell.exec(listCmd);
-        } catch (error) {
-          console.warn('ls命令失败，尝试使用find命令');
-          result = await Shell.exec('find / -maxdepth 1 -type d 2>/dev/null | head -20');
-        }
-        
-        if (!result || result.trim() === '') {
-          console.warn('根目录为空或命令无输出');
-          this.directoryTree = [];
-          return;
-        }
-        
-        const lines = result.trim().split('\n');
-        const directories: FileItem[] = [];
-        
-        // 添加根目录
-        directories.push({
-          name: '/',
-          type: 'directory',
-          size: 0,
-          sizeFormatted: '<DIR>',
-          modifiedTime: Math.floor(Date.now() / 1000),
-          modifiedTimeFormatted: formatTime(Math.floor(Date.now() / 1000)),
-          permissions: 'drwxr-xr-x',
-          isHidden: false,
-          fullPath: '/',
-          icon: '📁',
-          isExecutable: false,
-        });
-        
-        // 添加常用系统目录
-        const commonDirs = ['/userdisk', '/system', '/data', '/storage', '/mnt', '/dev', '/proc', '/sys'];
-        
-        for (const dir of commonDirs) {
-          // 检查目录是否存在
-          try {
-            const checkCmd = `test -d "${dir}" && echo "exists"`;
-            const existsResult = await Shell.exec(checkCmd);
-            
-            if (existsResult.trim() === 'exists') {
-              directories.push({
-                name: dir,
-                type: 'directory',
-                size: 0,
-                sizeFormatted: '<DIR>',
-                modifiedTime: Math.floor(Date.now() / 1000),
-                modifiedTimeFormatted: formatTime(Math.floor(Date.now() / 1000)),
-                permissions: 'drwxr-xr-x',
-                isHidden: false,
-                fullPath: dir,
-                icon: '📁',
-                isExecutable: false,
-              });
-            }
-          } catch (error) {
-            console.warn(`目录 ${dir} 不存在或无法访问`);
-          }
-        }
-        
-        this.directoryTree = directories;
-        console.log('目录树加载完成:', this.directoryTree.length, '个项目');
-        
-      } catch (error: any) {
-        console.error('加载根目录失败:', error);
-        // 即使失败也不影响主要功能
-        this.directoryTree = [];
-      }
-    },
-    
-    // 加载当前目录
-    async loadDirectory() {
-      if (!this.shellInitialized || !Shell) {
-        showError('Shell模块未初始化，无法加载目录');
-        return;
-      }
-      
-      try {
-        this.isLoading = true;
-        showLoading();
-        
-        console.log('加载目录:', this.currentPath);
-        
-        // 确保路径格式正确
-        let path = this.currentPath;
-        if (!path.startsWith('/')) {
-          path = '/' + path;
-        }
-        if (path !== '/' && path.endsWith('/')) {
-          path = path.slice(0, -1);
-        }
-        this.currentPath = path;
-        console.log('标准化路径:', path);
-        
-        // 使用ls命令获取文件列表
-        const listCmd = `cd "${path}" && ls -la`;
-        console.log('执行命令:', listCmd);
-        
-        let result = '';
-        try {
-          result = await Shell.exec(listCmd);
-          console.log('ls命令原始输出:', result);
-        } catch (error: any) {
-          console.error('ls命令执行失败:', error);
-          // 尝试简单命令
-          result = await Shell.exec(`cd "${path}" && ls`);
-          // 如果没有文件，设置为空
-          if (!result || result.trim() === '') {
-            this.fileList = [];
-            this.updateStats();
-            return;
-          }
-          
-          // 处理简单的ls输出
-          const lines = result.trim().split('\n');
-          const files: FileItem[] = [];
-          
-          for (const fileName of lines) {
-            if (!fileName.trim() || fileName === '.') continue;
-            
-            const filePath = path === '/' ? `/${fileName}` : `${path}/${fileName}`;
-            
-            files.push(this.createSimpleFileItem(fileName, filePath, path));
-          }
-          
-          this.fileList = files;
-          this.updateStats();
-          return;
-        }
-        
-        if (!result || result.trim() === '') {
-          console.warn('目录为空或命令无输出');
-          this.fileList = [];
-          this.updateStats();
-          return;
-        }
-        
-        // 解析ls -la输出
-        const lines = result.trim().split('\n');
-        console.log('解析行数:', lines.length);
-        
-        // 跳过第一行（总计数行）
-        const fileLines = lines.slice(1);
-        const files: FileItem[] = [];
-        
-        for (const line of fileLines) {
-          const file = this.parseFileLine(line, path);
-          if (file) {
-            files.push(file);
-          }
-        }
-        
-        this.fileList = files;
-        console.log('最终文件列表:', this.fileList.length, '个项目');
-        
-        // 更新统计信息
-        this.updateStats();
-        
-      } catch (error: any) {
-        console.error('加载目录失败:', error);
-        showError(`加载目录失败: ${error.message}`);
-        this.fileList = [];
-        this.updateStats();
+        this.deviceInfo.error = `加载失败: ${error.message || '未知错误'}`;
       } finally {
         this.isLoading = false;
-        hideLoading();
+        this.isRefreshing = false;
       }
     },
     
-    // 创建简单的文件项（当stat命令不可用时）
-    createSimpleFileItem(fileName: string, filePath: string, currentPath: string): FileItem {
-      // 尝试判断是否是目录
-      const isDirectory = !fileName.includes('.') || fileName.endsWith('/');
-      
-      const type: 'file' | 'directory' | 'link' | 'unknown' = isDirectory ? 'directory' : 'file';
-      
-      // 确定图标
-      let icon = '?';
-      if (type === 'directory') {
-        icon = '📁';
-      } else if (fileName.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash)$/i)) {
-        icon = '📄';
-      } else if (fileName.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) {
-        icon = '🖼️';
-      } else if (fileName.match(/\.(amr|apk|bin|so|exe)$/i)) {
-        icon = '⚙️';
-      } else {
-        icon = '📄';
+    async initializeShell() {
+      if (!Shell || typeof Shell.initialize !== 'function') {
+        throw new Error('Shell模块不可用');
       }
-      
-      return {
-        name: fileName,
-        type,
-        size: 0,
-        sizeFormatted: type === 'directory' ? '<DIR>' : '0 B',
-        modifiedTime: Math.floor(Date.now() / 1000),
-        modifiedTimeFormatted: formatTime(Math.floor(Date.now() / 1000)),
-        permissions: '-rw-r--r--',
-        isHidden: fileName.startsWith('.'),
-        fullPath: filePath,
-        icon,
-        isExecutable: false,
-      };
+      await Shell.initialize();
+      this.shellModule = Shell;
+      this.shellInitialized = true;
     },
     
-    // 解析ls -la输出行
-    parseFileLine(line: string, currentPath: string): FileItem | null {
-      if (!line.trim()) return null;
-      
-      // 跳过.和..
-      if (line.includes(' . ') || line.includes(' .. ')) {
-        return null;
+    async fetchAllCommands() {
+      if (!this.shellInitialized) {
+        throw new Error('Shell未初始化');
       }
+
+      this.deviceInfo.timestamp = Date.now();
       
-      const parts = line.trim().split(/\s+/);
-      if (parts.length < 9) return null;
-      
-      const permissions = parts[0];
-      const nameIndex = parts.findIndex((part, index) => {
-        if (index < 8) return false;
-        if (part.match(/^\d+$/) && index <= 8) return false;
-        return true;
-      });
-      
-      if (nameIndex === -1 || nameIndex >= parts.length) return null;
-      
-      const name = parts.slice(nameIndex).join(' ');
-      
-      // 跳过.和..文件
-      if (name === '.' || name === '..') return null;
-      
-      // 判断文件类型
-      const typeChar = permissions.charAt(0);
-      let type: 'file' | 'directory' | 'link' | 'unknown' = 'unknown';
-      let icon = '?';
-      
-      if (typeChar === '-') {
-        type = 'file';
-        // 根据文件扩展名设置图标
-        if (name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash)$/i)) {
-          icon = '📄';
-        } else if (name.match(/\.(png|jpg|jpeg|gif|bmp|svg)$/i)) {
-          icon = '🖼️';
-        } else if (name.match(/\.(amr|apk|bin|so|exe)$/i)) {
-          icon = '⚙️';
-        } else {
-          icon = '📄';
-        }
-      } else if (typeChar === 'd') {
-        type = 'directory';
-        icon = '📁';
-      } else if (typeChar === 'l') {
-        type = 'link';
-        icon = '🔗';
-      }
-      
-      // 获取大小
-      let size = 0;
-      let sizeFormatted = '';
-      
-      // 尝试从行中查找大小字段
-      const sizeStr = parts[4];
-      if (sizeStr && !isNaN(parseInt(sizeStr, 10))) {
-        size = parseInt(sizeStr, 10);
-      }
-      
-      if (type === 'directory') {
-        sizeFormatted = '<DIR>';
-      } else if (size < 1024) {
-        sizeFormatted = `${size} B`;
-      } else if (size < 1024 * 1024) {
-        sizeFormatted = `${(size / 1024).toFixed(1)} KB`;
-      } else if (size < 1024 * 1024 * 1024) {
-        sizeFormatted = `${(size / (1024 * 1024)).toFixed(1)} MB`;
-      } else {
-        sizeFormatted = `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-      }
-      
-      // 判断是否为隐藏文件
-      const isHidden = name.startsWith('.');
-      
-      // 判断是否可执行
-      const isExecutable = permissions.includes('x');
-      
-      // 获取完整路径
-      let fullPath = '';
-      if (currentPath === '/') {
-        fullPath = `/${name}`;
-      } else {
-        fullPath = `${currentPath}/${name}`;
-      }
-      
-      return {
-        name,
-        type,
-        size,
-        sizeFormatted,
-        modifiedTime: Math.floor(Date.now() / 1000), // 简化时间处理
-        modifiedTimeFormatted: '刚刚',
-        permissions,
-        isHidden,
-        fullPath,
-        icon,
-        isExecutable,
-      };
+      // 并行执行所有命令以提高效率
+      await Promise.all([
+        this.fetchCommands('ipAddress'),
+        this.fetchCommands('deviceId'),
+        this.fetchCommands('systemInfo'),
+        this.fetchCommands('networkInfo'),
+        this.fetchCommands('storageInfo'),
+        this.fetchCommands('batteryPercent'),
+      ]);
     },
     
-    // 更新统计信息
-    updateStats() {
-      this.totalFiles = this.fileList.length;
-      
-      // 计算总大小（仅文件）
-      this.totalSize = this.fileList
-        .filter(file => file.type === 'file')
-        .reduce((sum, file) => sum + file.size, 0);
-    },
-    
-    // 打开文件或目录
-    async openItem(item: FileItem) {
-      console.log('打开项目:', item.name, '类型:', item.type, '路径:', item.fullPath);
-      
-      if (item.type === 'directory') {
-        // 进入目录
-        this.currentPath = item.fullPath;
-        this.selectedTreePath = item.fullPath;
-        console.log('切换到目录:', this.currentPath);
-        await this.loadDirectory();
-      } else {
-        // 打开文件
-        await this.openFile(item);
-      }
-    },
-    
-    // 打开文件
-    async openFile(file: FileItem) {
-      console.log('打开文件:', file.fullPath);
-      
-      try {
-        // 判断文件类型，如果是文本文件则用编辑器打开
-        const isTextFile = file.name.match(/\.(txt|json|js|ts|vue|less|css|md|xml|html|htm|sh|bash|log|conf|ini|yml|yaml)$/i);
-        
-        if (isTextFile) {
-          // 用文件编辑器打开
-          $falcon.navTo('fileEditor', {
-            filePath: file.fullPath,
-            returnTo: 'fileManager',
-            returnPath: this.currentPath,
-          });
-        } else {
-          showInfo(`打开文件: ${file.name} (暂不支持此文件类型的预览)`);
-        }
-        
-      } catch (error: any) {
-        console.error('打开文件失败:', error);
-        showError(`打开文件失败: ${error.message}`);
-      }
-    },
-    
-    // 返回上一级
-    async goBack() {
-      console.log('返回上一级，当前路径:', this.currentPath, '父路径:', this.parentPath);
-      
-      if (!this.canGoBack) {
-        console.log('已经在根目录');
-        return;
-      }
-      
-      const oldPath = this.currentPath;
-      this.currentPath = this.parentPath;
-      this.selectedTreePath = this.parentPath;
-      console.log('从', oldPath, '切换到', this.currentPath);
-      
-      await this.loadDirectory();
-    },
-    
-    // 刷新目录
-    async refreshDirectory() {
-      console.log('刷新目录:', this.currentPath);
-      await this.loadDirectory();
-      showSuccess('目录已刷新');
-    },
-    
-    // 创建新文件
-    async createNewFile() {
-      // 检查当前路径是否在/userdisk目录下
-      if (!this.isInUserDisk) {
-        showError('权限不足：只能在 /userdisk 目录下创建文件');
-        return;
-      }
-      
-      openSoftKeyboard(
-        () => '',
-        async (fileName) => {
-          if (!fileName.trim()) {
-            showWarning('文件名不能为空');
-            return;
-          }
-          
-          try {
-            showLoading();
-            
-            const fullPath = this.currentPath === '/' 
-              ? `/${fileName}`
-              : `${this.currentPath}/${fileName}`;
-            
-            console.log('创建文件:', fullPath);
-            
-            // 创建空文件
-            await Shell.exec(`touch "${fullPath}"`);
-            
-            showSuccess(`文件创建成功: ${fileName}`);
-            await this.loadDirectory();
-            
-          } catch (error: any) {
-            console.error('创建文件失败:', error);
-            showError(`创建文件失败: ${error.message}`);
-          } finally {
-            hideLoading();
-          }
-        },
-        (value) => {
-          if (!value.trim()) return '请输入文件名';
-          if (value.includes('/')) return '文件名不能包含斜杠';
-          return undefined;
-        }
-      );
-    },
-    
-    // 创建新目录
-    async createNewDirectory() {
-      // 检查当前路径是否在/userdisk目录下
-      if (!this.isInUserDisk) {
-        showError('权限不足：只能在 /userdisk 目录下创建目录');
-        return;
-      }
-      
-      openSoftKeyboard(
-        () => '',
-        async (dirName) => {
-          if (!dirName.trim()) {
-            showWarning('目录名不能为空');
-            return;
-          }
-          
-          try {
-            showLoading();
-            
-            const fullPath = this.currentPath === '/' 
-              ? `/${dirName}`
-              : `${this.currentPath}/${dirName}`;
-            
-            console.log('创建目录:', fullPath);
-            
-            // 创建目录
-            await Shell.exec(`mkdir -p "${fullPath}"`);
-            
-            showSuccess(`目录创建成功: ${dirName}`);
-            await this.loadDirectory();
-            
-          } catch (error: any) {
-            console.error('创建目录失败:', error);
-            showError(`创建目录失败: ${error.message}`);
-          } finally {
-            hideLoading();
-          }
-        },
-        (value) => {
-          if (!value.trim()) return '请输入目录名';
-          if (value.includes('/')) return '目录名不能包含斜杠';
-          return undefined;
-        }
-      );
-    },
-    
-    // 删除文件/目录
-    async deleteItem(item: FileItem) {
-      // 检查文件是否在/userdisk目录下
-      if (!this.isFileInUserDisk(item.fullPath)) {
-        showError('权限不足：只能在 /userdisk 目录下删除文件或目录');
-        return;
-      }
-      
-      this.showConfirmModal = true;
-      this.confirmTitle = '确认删除';
-      this.confirmMessage = `确定要删除 ${item.name} 吗？此操作不可恢复！`;
-      this.confirmCallback = async () => {
+    async fetchCommands(type: keyof typeof this.commandConfigs) {
+      const results: CommandResult[] = [];
+      for (const config of this.commandConfigs[type]) {
         try {
-          showLoading();
-          
-          console.log('删除:', item.fullPath);
-          
-          // 使用不同的命令删除文件和目录
-          if (item.type === 'directory') {
-            // 删除目录
-            await Shell.exec(`rm -rf "${item.fullPath}"`);
-          } else {
-            // 删除文件
-            await Shell.exec(`rm "${item.fullPath}"`);
-          }
-          
-          showSuccess(`删除成功: ${item.name}`);
-          await this.loadDirectory();
-          
-        } catch (error: any) {
-          console.error('删除失败:', error);
-          showError(`删除失败: ${error.message}`);
-        } finally {
-          hideLoading();
-          this.showConfirmModal = false;
+          const result = (await Shell.exec(config.command)).trim();
+          results.push({
+            ...config,
+            result: result || '未获取到',
+          });
+        } catch (error) {
+          results.push({
+            ...config,
+            result: '执行失败',
+          });
         }
-      };
-    },
-    
-    // 重命名文件/目录
-    async renameItem(item: FileItem) {
-      // 检查文件是否在/userdisk目录下
-      if (!this.isFileInUserDisk(item.fullPath)) {
-        showError('权限不足：只能在 /userdisk 目录下重命名文件或目录');
-        return;
       }
-      
-      openSoftKeyboard(
-        () => item.name,
-        async (newName) => {
-          if (!newName.trim() || newName === item.name) {
-            if (newName === item.name) {
-              showInfo('文件名未改变');
-            }
-            return;
-          }
-          
-          try {
-            showLoading();
-            
-            const newPath = this.currentPath === '/' 
-              ? `/${newName}`
-              : `${this.currentPath}/${newName}`;
-            
-            console.log('重命名:', item.fullPath, '->', newPath);
-            
-            // 重命名
-            await Shell.exec(`mv "${item.fullPath}" "${newPath}"`);
-            
-            showSuccess(`重命名成功: ${item.name} -> ${newName}`);
-            await this.loadDirectory();
-            
-          } catch (error: any) {
-            console.error('重命名失败:', error);
-            showError(`重命名失败: ${error.message}`);
-          } finally {
-            hideLoading();
-          }
-        },
-        (value) => {
-          if (!value.trim()) return '请输入新名称';
-          if (value.includes('/')) return '名称不能包含斜杠';
-          if (value === item.name) return '新名称不能与原名相同';
-          return undefined;
-        }
-      );
+      this.deviceInfo[type] = results;
     },
-    
-    // 复制文件路径
-    copyFilePath(item: FileItem) {
-      console.log('复制文件路径:', item.fullPath);
-      showInfo(`文件路径已复制: ${item.fullPath}`);
+
+    async refreshInfo() {
+      if (this.isRefreshing) return;
+      this.isRefreshing = true;
+      await this.fetchAllCommands();
+      this.isRefreshing = false;
     },
-    
-    // 显示文件属性
-    showFileProperties(item: FileItem) {
-      const properties = `
-文件名称: ${item.name}
-文件类型: ${item.type === 'directory' ? '目录' : '文件'}
-文件大小: ${item.sizeFormatted}
-修改时间: ${item.modifiedTimeFormatted}
-权限设置: ${item.permissions}
-完整路径: ${item.fullPath}
-隐藏文件: ${item.isHidden ? '是' : '否'}
-可执行文件: ${item.isExecutable ? '是' : '否'}
-      `.trim();
-      
-      showInfo(properties);
-    },
-    
-    // 切换显示隐藏文件
-    toggleHiddenFiles() {
-      this.showHiddenFiles = !this.showHiddenFiles;
-      console.log('切换显示隐藏文件:', this.showHiddenFiles);
-      this.$forceUpdate();
-    },
-    
-    // 搜索文件
-    searchFiles() {
-      openSoftKeyboard(
-        () => this.searchKeyword,
-        (value) => {
-          this.searchKeyword = value;
-          console.log('搜索关键词:', value);
-          this.$forceUpdate();
-        }
-      );
-    },
-    
-    // 清除搜索
-    clearSearch() {
-      this.searchKeyword = '';
-      this.$forceUpdate();
-    },
-    
-    // 格式化大小
-    formatSize(bytes: number): string {
-      if (bytes < 1024) return `${bytes} B`;
-      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-      if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-      return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-    },
-    
-    // 获取文件图标
-    getFileIcon(file: FileItem): string {
-      return file.icon;
-    },
-    
-    // 处理文件保存事件
-    handleFileSaved(e: { data: string }) {
-      console.log('收到文件保存事件:', e.data);
-      // 刷新当前目录
-      this.loadDirectory();
-    },
-    
-    // 处理返回键
+
     handleBackPress() {
-      if (this.showConfirmModal) {
-        this.showConfirmModal = false;
-        return;
-      }
-      
-      if (this.canGoBack) {
-        console.log('返回键：返回上一级目录');
-        this.goBack();
-        return;
-      }
-      
-      console.log('返回键：退出文件管理器');
       this.$page.finish();
     },
     
-    // 确认对话框相关
-    executeConfirmAction() {
-      if (this.confirmCallback) {
-        this.confirmCallback();
+    // 简化的IP格式化方法
+    formatIP(ipResults: CommandResult[]) {
+      // 返回第一个有效的IP结果
+      const validIP = ipResults.find(r => r.result && r.result !== '未获取到' && r.result !== '执行失败');
+      return validIP ? validIP.result : '未获取到IP地址';
+    },
+    
+    // 简化的电池电量获取
+    getBatteryPercent(batteryResults: CommandResult[]) {
+      // 查找电池容量结果
+      const batteryResult = batteryResults.find(r => r.label.includes('容量'));
+      return batteryResult && batteryResult.result !== '未获取到' && batteryResult.result !== '执行失败' 
+        ? batteryResult.result 
+        : '未知';
+    },
+    
+    // 简化的设备ID获取
+    getDeviceId(deviceIdResults: CommandResult[]) {
+      // 优先使用UUID，其次是机器ID
+      const uuidResult = deviceIdResults.find(r => r.label.includes('UUID'));
+      const machineIdResult = deviceIdResults.find(r => r.label.includes('机器ID'));
+      
+      if (uuidResult && uuidResult.result !== '未获取到' && uuidResult.result !== '执行失败') {
+        return uuidResult.result;
       }
-      this.showConfirmModal = false;
-      this.confirmCallback = null;
-    },
-    
-    cancelConfirmAction() {
-      this.showConfirmModal = false;
-      this.confirmCallback = null;
-    },
-    
-    // 隐藏初始化错误
-    hideInitError() {
-      this.showInitError = false;
-      this.initErrorMessage = '';
-    },
-    
-    // 切换布局模式
-    toggleLayout() {
-      this.isWideScreen = !this.isWideScreen;
-    },
-    
-    // 选择目录树项目
-    selectTreeItem(item: FileItem) {
-      this.selectedTreePath = item.fullPath;
-      if (item.type === 'directory') {
-        this.currentPath = item.fullPath;
-        this.loadDirectory();
+      if (machineIdResult && machineIdResult.result !== '未获取到' && machineIdResult.result !== '执行失败') {
+        return machineIdResult.result;
       }
+      return '未知';
     },
-  },
+    
+    // 获取系统信息中的特定值
+    getSystemInfo(systemResults: CommandResult[], key: string) {
+      const result = systemResults.find(r => r.label.includes(key));
+      return result && result.result !== '未获取到' && result.result !== '执行失败' 
+        ? result.result 
+        : '未知';
+    },
+    
+    // 获取存储信息中的特定值
+    getStorageInfo(storageResults: CommandResult[], key: string) {
+      const dfResult = storageResults.find(r => r.label.includes('根目录使用'));
+      if (!dfResult || !dfResult.result) return '未知';
+      
+      try {
+        const lines = dfResult.result.split('\n');
+        if (lines.length > 1) {
+          const parts = lines[1].split(/\s+/);
+          if (parts.length >= 6) {
+            switch (key) {
+              case 'total': return parts[1];
+              case 'used': return parts[2];
+              case 'free': return parts[3];
+            }
+          }
+        }
+      } catch (error) {
+        console.error('解析存储信息失败:', error);
+      }
+      return '未知';
+    },
+  }
 });
