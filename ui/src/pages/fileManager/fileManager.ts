@@ -166,7 +166,7 @@ export default defineComponent({
       }
     },
     
-    // 加载目录 - 改进版本
+    // 加载目录 - 改进版本，修复根目录显示问题
     async loadDirectory() {
       if (!this.shellInitialized || !Shell) {
         showError('Shell模块未初始化');
@@ -190,8 +190,15 @@ export default defineComponent({
         this.currentPath = path;
         console.log('标准化路径:', path);
         
-        // 使用stat命令来获取准确的文件信息
-        const listCmd = `cd "${path}" && ls -la`;
+        // 对于根目录，使用特殊命令
+        let listCmd = '';
+        if (path === '/') {
+          // 根目录直接列出内容
+          listCmd = 'ls -la /';
+        } else {
+          listCmd = `cd "${path}" && ls -la`;
+        }
+        
         console.log('执行命令:', listCmd);
         
         let result = '';
@@ -201,7 +208,11 @@ export default defineComponent({
         } catch (error: any) {
           console.error('ls命令执行失败:', error);
           // 尝试另一种方法
-          result = await Shell.exec(`cd "${path}" && ls`);
+          if (path === '/') {
+            result = await Shell.exec('ls /');
+          } else {
+            result = await Shell.exec(`cd "${path}" && ls`);
+          }
           // 如果没有文件，设置为空
           if (!result || result.trim() === '') {
             this.fileList = [];
@@ -297,7 +308,7 @@ export default defineComponent({
         const files: FileItem[] = [];
         
         for (const line of fileLines) {
-          const file = this.parseFileLineImproved(line);
+          const file = this.parseFileLineImproved(line, path);
           if (file) {
             files.push(file);
             console.log('解析文件:', file.name, '类型:', file.type, '完整路径:', file.fullPath);
@@ -326,8 +337,8 @@ export default defineComponent({
       }
     },
     
-    // 改进的文件行解析方法
-    parseFileLineImproved(line: string): FileItem | null {
+    // 改进的文件行解析方法，添加当前路径参数
+    parseFileLineImproved(line: string, currentPath: string): FileItem | null {
       if (!line.trim()) return null;
       
       // 跳过.和..
@@ -414,8 +425,7 @@ export default defineComponent({
         const dayStr = parts[6];
         const timeOrYearStr = parts[7];
         
-        // 简单的日期解析（这里只是一个示例，实际需要更复杂的解析）
-        // 在实际项目中，应该使用专门的日期解析库
+        // 简单的日期解析
         const now = new Date();
         const currentYear = now.getFullYear();
         
@@ -458,10 +468,10 @@ export default defineComponent({
       
       // 获取完整路径
       let fullPath = '';
-      if (this.currentPath === '/') {
+      if (currentPath === '/') {
         fullPath = `/${name}`;
       } else {
-        fullPath = `${this.currentPath}/${name}`;
+        fullPath = `${currentPath}/${name}`;
       }
       
       return {
@@ -858,6 +868,11 @@ export default defineComponent({
     cancelConfirmAction() {
       this.showConfirmModal = false;
       this.confirmCallback = null;
+    },
+    
+    // 返回主页
+    goToHome() {
+      $falcon.navTo('index', {});
     },
   },
 });
