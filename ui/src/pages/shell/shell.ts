@@ -82,7 +82,7 @@ export default defineComponent({
     // 初始化Shell模块
     async initializeShell() {
       try {
-        this.addTerminalLine('system', '正在初始化Shell模块...');
+        // 删除所有初始化提示文字，只保留必要的初始化
         
         // 直接使用从langningchen导入的Shell
         console.log('使用langningchen.Shell模块...');
@@ -102,30 +102,18 @@ export default defineComponent({
         
         this.shellModule = Shell;
         this.shellInitialized = true;
-        this.addTerminalLine('system', 'Shell模块初始化成功');
         
-        // 获取初始目录
+        // 获取初始目录，但不显示提示
         try {
           const result = await Shell.exec('pwd');
           this.currentDir = result.trim();
-          this.addTerminalLine('system', `当前目录: ${this.currentDir}`);
         } catch (error: any) {
-          this.addTerminalLine('system', `当前目录: / (默认)`);
+          // 默认目录，不显示提示
         }
-        
-        // 测试Shell功能
-        setTimeout(async () => {
-          try {
-            const result = await Shell.exec('echo "Shell终端已就绪"');
-            this.addTerminalLine('output', result.trim());
-          } catch (error: any) {
-            this.addTerminalLine('error', `Shell测试失败: ${error.message}`);
-          }
-        }, 500);
         
       } catch (error: any) {
         console.error('Shell模块初始化失败:', error);
-        this.addTerminalLine('error', `Shell模块初始化失败: ${error.message}`);
+        // 初始化失败时不显示错误提示
         this.shellInitialized = false;
       }
     },
@@ -209,8 +197,7 @@ export default defineComponent({
         case 'nano':
         case 'ed':
           // 也可以支持其他文本编辑器命令
-          this.addTerminalLine('system', `尝试使用 ${cmd} 编辑器`);
-          this.addTerminalLine('system', '正在打开文本编辑器...');
+          // 删除提示文字
           await this.handleViCommand(args);
           return true;
           
@@ -223,7 +210,6 @@ export default defineComponent({
     async handleViCommand(args: string[]) {
       if (args.length === 0) {
         this.addTerminalLine('error', '用法: vi <文件名>');
-        this.addTerminalLine('error', '请指定要编辑的文件名');
         return;
       }
       
@@ -240,18 +226,14 @@ export default defineComponent({
           filePath = this.currentDir === '/' ? `/${fileName}` : `${this.currentDir}/${fileName}`;
         }
         
-        this.addTerminalLine('system', `正在打开文件: ${filePath}`);
-        this.addTerminalLine('system', '跳转到文本编辑器...');
-        
         // 跳转到文件编辑器页面
-        // 使用setTimeout确保先显示终端消息再跳转
         setTimeout(() => {
           $falcon.navTo('fileEditor', {
             filePath: filePath,
             returnTo: 'shell',
             returnPath: this.currentDir,
           });
-        }, 500);
+        }, 100);
         
       } catch (error: any) {
         this.addTerminalLine('error', `打开文件失败: ${error.message}`);
@@ -272,9 +254,6 @@ export default defineComponent({
           await this.handleCdCommand(args);
           return;
         }
-        
-        // 如果是vi/vim命令，已经被handleBuiltinCommand处理了
-        // 这里主要是为了确保不会重复执行
         
         console.log('执行命令:', command);
         
@@ -338,9 +317,6 @@ export default defineComponent({
         // 更新当前目录
         this.currentDir = newDir;
         
-        // 显示新目录（pwd的输出）
-        this.addTerminalLine('output', newDir);
-        
       } catch (error: any) {
         this.addTerminalLine('error', `cd: ${error.message || '无法切换目录'}`);
         
@@ -350,7 +326,6 @@ export default defineComponent({
           try {
             const result = await Shell.exec(`cd ${targetPath} && pwd`);
             this.currentDir = result.trim();
-            this.addTerminalLine('output', this.currentDir);
           } catch (e: any) {
             this.addTerminalLine('error', `cd: 无法切换到目录 "${targetPath}"`);
           }
@@ -414,14 +389,14 @@ vi <文件>     编辑文本文件 (使用内置编辑器)
       this.historyIndex = -1;
       this.inputText = '';
       this.currentDir = '/';
-      this.addTerminalLine('system', '终端已重置');
+      // 删除重置提示
       this.initializeShell();
     },
     
     // 清空终端
     clearTerminal() {
+      // 直接清空终端，不显示任何提示
       this.terminalLines = [];
-      this.addTerminalLine('system', '终端已清空');
     },
     
     // 滚动到底部
@@ -481,7 +456,7 @@ vi <文件>     编辑文本文件 (使用内置编辑器)
       
       if (this.terminalLines.length > 5) {
         this.clearTerminal();
-        this.addTerminalLine('system', '再次按返回键退出');
+        // 删除提示文字
         return;
       }
       
