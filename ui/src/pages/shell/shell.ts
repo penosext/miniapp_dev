@@ -147,10 +147,7 @@ export default defineComponent({
     
     // 添加欢迎消息
     addWelcomeMessage() {
-      this.addTerminalLine('system', '=== Shell终端 ===');
-      this.addTerminalLine('system', '基于langningchen.Shell模块');
       this.addTerminalLine('system', '输入 "help" 查看帮助');
-      this.addTerminalLine('system', '提示: 使用 vi <文件名> 编辑文件');
     },
     
     // 执行命令
@@ -205,10 +202,6 @@ export default defineComponent({
           
         case 'reset':
           this.resetTerminal();
-          return true;
-          
-        case 'test':
-          await this.testShell();
           return true;
           
         // 添加对vi命令的支持
@@ -292,7 +285,6 @@ export default defineComponent({
         // 记录开始时间
         const startTime = Date.now();
         
-        // 使用langningchen.Shell.exec执行命令
         // 在命令前加上cd到当前目录，确保在工作目录执行
         const fullCommand = `cd "${this.currentDir}" && ${command}`;
         const result = await Shell.exec(fullCommand);
@@ -418,8 +410,6 @@ export default defineComponent({
     showHelp() {
       const helpText = `
 可用命令:
-
-=== 内置命令 ===
 help          显示帮助信息
 clear         清空终端显示
 history       显示命令历史
@@ -433,13 +423,13 @@ vi <文件>     编辑文本文件 (使用内置编辑器)
 文件操作:
   ls            列出文件
   ls -la        详细文件列表
-  cd [目录]     切换目录（现在真正生效）
+  cd [目录]      切换目录
   pwd           显示当前目录
-  cat [文件]    查看文件
-  mkdir [目录]  创建目录
-  rm [文件]     删除文件
-  touch [文件]  创建文件
-  vi <文件>     编辑文件 (会跳转到文本编辑器)
+  cat [文件]     查看文件
+  mkdir [目录]   创建目录
+  rm [文件]      删除文件
+  touch [文件]   创建文件
+  vi <文件>      编辑文件
 
 系统信息:
   ps aux        查看进程
@@ -454,8 +444,7 @@ vi <文件>     编辑文本文件 (使用内置编辑器)
   wget [URL]    下载文件
 
 安装应用:
-  miniapp_cli install [amr文件]  安装应用
-
+  miniapp_cli install [.../.../app.amr] 需要决定路径
 注意: 现在目录切换功能已修复，创建的文件夹会在正确的目录中。
 
 状态: ${this.shellInitialized ? 'Shell模块已就绪' : 'Shell模块未初始化'}
