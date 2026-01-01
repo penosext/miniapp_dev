@@ -1,6 +1,6 @@
 // MT管理器风格文件管理器样式
-// 版本: 2.0
-// 描述: 完全分离的Less样式文件，Vue文件只负责逻辑和模板
+// 版本: 2.1
+// 描述: 修复显示不全问题，用文字代替符号
 
 @import url('../../styles/section.less');
 
@@ -10,7 +10,13 @@
   background-color: #1a1a1a;
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
 }
 
 /* 顶部操作栏 */
@@ -19,6 +25,7 @@
   flex-direction: column;
   background-color: #2d2d2d;
   border-bottom: 1px solid #444;
+  flex-shrink: 0;
 }
 
 .path-bar {
@@ -27,6 +34,7 @@
   align-items: center;
   padding: 8px 12px;
   background-color: #252525;
+  min-height: 40px;
 }
 
 .path-text {
@@ -44,38 +52,49 @@
 .path-text.disabled {
   color: #666;
   opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .path-btn {
-  width: 30px;
-  height: 24px;
-  line-height: 24px;
+  width: 60px;
+  height: 28px;
+  line-height: 28px;
   text-align: center;
-  font-size: 16px;
+  font-size: 14px;
   color: #4a9eff;
   margin-left: 10px;
   cursor: pointer;
+  background-color: #3a3a3a;
+  border-radius: 4px;
+}
+
+.path-btn:hover {
+  background-color: #4a4a4a;
 }
 
 .action-bar {
   display: flex;
   flex-direction: row;
-  padding: 6px 12px;
+  padding: 8px 12px;
   background-color: #2d2d2d;
+  flex-wrap: wrap;
+  min-height: 50px;
 }
 
 .action-btn {
-  width: 40px;
+  min-width: 80px;
   height: 32px;
   line-height: 32px;
   text-align: center;
-  font-size: 18px;
+  font-size: 14px;
   color: #e0e0e0;
-  margin-right: 10px;
+  margin-right: 8px;
+  margin-bottom: 4px;
   border-radius: 4px;
   background-color: #3a3a3a;
   cursor: pointer;
   transition: all 0.2s ease;
+  padding: 0 12px;
 }
 
 .action-btn:last-child {
@@ -98,6 +117,7 @@
   padding: 8px 12px;
   background-color: #332200;
   border-bottom: 1px solid #664400;
+  flex-shrink: 0;
 }
 
 .warning-text {
@@ -113,6 +133,7 @@
   flex-direction: row;
   flex: 1;
   overflow: hidden;
+  min-height: 0;
 }
 
 /* 宽屏布局 */
@@ -120,11 +141,13 @@
   width: 200px;
   border-right: 1px solid #333;
   display: flex;
+  flex-shrink: 0;
 }
 
 .main-layout.wide .right-panel {
   flex: 1;
   display: flex;
+  min-width: 0;
 }
 
 /* 窄屏布局 */
@@ -135,6 +158,7 @@
 .main-layout.narrow .right-panel {
   width: 100%;
   display: flex;
+  min-width: 0;
 }
 
 /* 左侧目录树 */
@@ -144,6 +168,7 @@
 
 .directory-tree {
   flex: 1;
+  min-height: 0;
 }
 
 .tree-title {
@@ -153,6 +178,7 @@
   color: #888;
   border-bottom: 1px solid #333;
   font-weight: bold;
+  background-color: #2a2a2a;
 }
 
 .tree-item {
@@ -163,6 +189,7 @@
   border-bottom: 1px solid #2a2a2a;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  min-height: 44px;
 }
 
 .tree-item:hover {
@@ -181,6 +208,7 @@
   font-size: 16px;
   color: #ffaa00;
   margin-right: 8px;
+  flex-shrink: 0;
 }
 
 .tree-name {
@@ -192,6 +220,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .empty-tree {
@@ -207,10 +236,15 @@
 /* 右侧文件列表 */
 .right-panel {
   background-color: #1a1a1a;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 .file-list {
   flex: 1;
+  min-height: 0;
 }
 
 /* 搜索状态 */
@@ -221,6 +255,7 @@
   padding: 8px 12px;
   background-color: #252525;
   border-bottom: 1px solid #333;
+  flex-shrink: 0;
 }
 
 .search-text {
@@ -237,6 +272,7 @@
   font-size: 16px;
   color: #888;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .clear-search:hover {
@@ -251,6 +287,7 @@
   padding: 8px 12px;
   background-color: #2a2a2a;
   border-bottom: 1px solid #333;
+  flex-shrink: 0;
 }
 
 .stats-text {
@@ -270,6 +307,7 @@
   border-radius: 3px;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  flex-shrink: 0;
 }
 
 .layout-toggle:hover {
@@ -280,6 +318,7 @@
 .empty-list {
   padding: 40px 20px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .empty-title {
@@ -307,6 +346,8 @@
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.2s ease;
+  min-height: 64px;
+  flex-shrink: 0;
 }
 
 .file-item:hover {
@@ -320,6 +361,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .file-icon {
@@ -337,6 +379,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  overflow: hidden;
 }
 
 .file-name {
@@ -362,6 +405,7 @@
   flex-direction: row;
   gap: 6px;
   margin-left: 10px;
+  flex-shrink: 0;
 }
 
 .file-action {
@@ -572,11 +616,13 @@
   }
   
   .action-btn {
-    width: 36px;
+    min-width: 70px;
     height: 30px;
     line-height: 30px;
-    font-size: 16px;
-    margin-right: 8px;
+    font-size: 13px;
+    margin-right: 6px;
+    margin-bottom: 4px;
+    padding: 0 8px;
   }
   
   .file-actions {
@@ -590,6 +636,13 @@
     line-height: 24px;
     font-size: 11px;
     padding: 0 6px;
+  }
+  
+  .path-btn {
+    width: 50px;
+    height: 26px;
+    line-height: 26px;
+    font-size: 13px;
   }
 }
 
