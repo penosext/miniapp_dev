@@ -32,7 +32,7 @@
                 
                 <div class="item">
                     <text class="item-text">设备型号:</text>
-                    <text class="item-text" style="color: #ffc107; flex: 1;">{{ deviceModel }}</text>
+                    <text class="item-input">{{ deviceModel }}</text>
                 </div>
                 
                 <div v-if="errorMessage" class="item">
@@ -47,28 +47,18 @@
                 
                 <div class="version-info">
                     <div class="version-line">
-                        <text class="version-label">设备型号:</text>
-                        <text class="version-value">{{ deviceModel }}</text>
-                    </div>
-                    
-                    <div class="version-line">
                         <text class="version-label">当前版本:</text>
-                        <text class="version-value version-old">v{{ currentVersion }}</text>
+                        <text class="version-value version-old">{{ currentVersionText }}</text>
                     </div>
                     
                     <div class="version-line">
                         <text class="version-label">最新版本:</text>
-                        <text class="version-value version-new">{{ latestRelease.tag_name }}</text>
+                        <text class="version-value version-new">{{ latestVersionText }}</text>
                     </div>
                     
                     <div class="version-line">
                         <text class="version-label">发布日期:</text>
                         <text class="version-value">{{ formatDate(latestRelease.published_at) }}</text>
-                    </div>
-                    
-                    <div class="version-line">
-                        <text class="version-label">更新名称:</text>
-                        <text class="version-value">{{ latestRelease.name }}</text>
                     </div>
                 </div>
             </div>
@@ -93,31 +83,6 @@
                 <div class="item">
                     <text class="item-text">文件大小:</text>
                     <text class="item-input">{{ formattedFileSize }}</text>
-                </div>
-                
-                <div class="item">
-                    <text class="item-text">目标设备:</text>
-                    <text class="item-input" :style="{color: downloadFile.name.includes(deviceModel) ? '#28a745' : '#dc3545'}">
-                        {{ deviceModel }}
-                        <text v-if="!downloadFile.name.includes(deviceModel)" style="color: #dc3545; font-size: 12px;">
-                           (不匹配当前型号)
-                        </text>
-                    </text>
-                </div>
-            </div>
-
-            <!-- 进度条 -->
-            <div class="section" v-if="status === 'downloading'">
-                <text class="section-title">下载进度</text>
-                
-                <div class="progress-container">
-                    <text class="progress-text">{{ formattedDownloadedSize }} / {{ formattedFileSize }}</text>
-                    
-                    <div class="progress-bar">
-                        <div class="progress-fill" :style="{ width: downloadProgress + '%' }"></div>
-                    </div>
-                    
-                    <text class="file-info">正在下载 {{ deviceModel }} 型号的更新文件...</text>
                 </div>
             </div>
 
@@ -145,12 +110,11 @@
             <div class="section">
                 <text class="section-title">使用说明</text>
                 <text style="font-size: 14px; color: #888888; line-height: 20px; padding: 10px;">
-                    1. 点击"检查更新"按钮获取最新版本信息<br/>
-                    2. 当前设备型号: {{ deviceModel }}<br/>
-                    3. 如果有新版本，点击"下载并安装更新"按钮<br/>
-                    4. 下载完成后会自动安装<br/>
-                    5. 安装完成后请重启应用<br/>
-                    6. 如果自动安装失败，可以手动执行安装命令
+                    1. 点击"检查更新"按钮获取最新版本信息
+                    2. 当前设备型号: {{ deviceModel }}
+                    3. 如果有新版本，点击"下载并安装更新"按钮
+                    4. 下载完成后会自动安装
+                    5. 安装完成后请重启应用
                 </text>
             </div>
         </scroller>
