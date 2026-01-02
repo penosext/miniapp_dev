@@ -36,22 +36,38 @@
                 </div>
             </div>
 
-            <!-- 镜像源设置 -->
+            <!-- 下载设置 -->
             <div class="section">
                 <text class="section-title">下载设置</text>
                 
                 <div class="mirror-settings">
-                    <div class="item">
-                        <text class="item-text">镜像源:</text>
-                        <select v-model="selectedMirror" class="mirror-select" @change="onMirrorChange">
-                            <option v-for="mirror in mirrors" :key="mirror.id" :value="mirror.id">
-                                {{ mirror.name }}
-                            </option>
-                        </select>
+                    <!-- 滑动栏 -->
+                    <div class="mirror-slider-container">
+                        <text class="mirror-slider-label">镜像源:</text>
+                        <div class="mirror-slider">
+                            <div class="mirror-slider-track" @click="onSliderClick">
+                                <div class="mirror-slider-thumb" :style="{ left: sliderPosition + '%' }"></div>
+                            </div>
+                        </div>
                     </div>
                     
-                    <div class="mirror-info">
-                        <text class="mirror-label">当前镜像: {{ currentMirror.name }}</text>
+                    <!-- 镜像源按钮 -->
+                    <div class="mirror-buttons-container">
+                        <div class="mirror-buttons-row">
+                            <text 
+                                v-for="(mirror, index) in visibleMirrors" 
+                                :key="mirror.id"
+                                :class="'mirror-btn ' + (selectedMirror === mirror.id ? 'mirror-btn-selected' : '')"
+                                @click="selectMirror(mirror.id)"
+                            >
+                                {{ mirror.shortName || mirror.name }}
+                            </text>
+                        </div>
+                    </div>
+                    
+                    <!-- 状态信息 -->
+                    <div class="mirror-status-info">
+                        <text class="mirror-current">{{ currentMirror.name }}</text>
                         <text :class="'mirror-status ' + (useMirror ? 'mirror-status-active' : 'mirror-status-disabled')">
                             {{ useMirror ? '镜像加速已启用' : '镜像加速未启用' }}
                         </text>
@@ -115,7 +131,7 @@
                 <text class="section-title">使用说明</text>
                 <text style="font-size: 14px; color: #888888; line-height: 20px; padding: 5px;">
                     1. 点击"检查更新"按钮获取最新版本信息
-                    2. 选择镜像源可以加速下载
+                    2. 滑动选择或点击按钮切换镜像源
                     3. 如果有新版本，点击"下载并安装更新"按钮
                     4. 下载完成后会自动安装
                     5. 安装完成后请重启应用

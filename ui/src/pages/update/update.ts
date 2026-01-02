@@ -36,6 +36,7 @@ const MIRRORS = [
     {
         id: 'none',
         name: '不使用镜像 (直接下载)',
+        shortName: '无镜像',
         enabled: false,
         urlPattern: '{url}',
         apiPattern: '{url}',
@@ -44,6 +45,7 @@ const MIRRORS = [
     {
         id: 'ghproxy',
         name: 'ghproxy.net (推荐)',
+        shortName: 'ghproxy',
         enabled: true,
         urlPattern: 'https://ghproxy.net/{url}',
         apiPattern: '{url}',
@@ -52,6 +54,7 @@ const MIRRORS = [
     {
         id: 'fastgit',
         name: 'FastGit',
+        shortName: 'FastGit',
         enabled: true,
         urlPattern: 'https://download.fastgit.org/{path}',
         apiPattern: 'https://api.fastgit.org/{path}',
@@ -60,6 +63,7 @@ const MIRRORS = [
     {
         id: 'ghproxycn',
         name: 'ghproxy.com',
+        shortName: 'ghproxy.com',
         enabled: true,
         urlPattern: 'https://ghproxy.com/{url}',
         apiPattern: '{url}',
@@ -96,13 +100,18 @@ const update = defineComponent({
             mirrors: MIRRORS,
             selectedMirror: 'ghproxy', // 默认使用ghproxy镜像
             useMirror: true, // 是否使用镜像
-            currentMirror: MIRRORS.find(m => m.id === 'ghproxy') || MIRRORS[0]
+            currentMirror: MIRRORS.find(m => m.id === 'ghproxy') || MIRRORS[0],
+            
+            // 滑动栏位置
+            sliderPosition: 33, // 默认在第二个位置 (ghproxy)
         };
     },
 
     async mounted() {
         await this.initializeShell();
         await this.autoCheckUpdates();
+        // 初始化滑动栏位置
+        this.updateSliderPosition();
     },
 
     computed: {
@@ -165,6 +174,11 @@ const update = defineComponent({
             if (this.status === 'updated') return `已是最新版本 v${this.currentVersion} (${this.deviceModel})`;
             if (this.status === 'error') return '检查更新失败';
             return `当前版本: v${this.currentVersion} (${this.deviceModel})`;
+        },
+
+        // 可见的镜像源（用于按钮显示）
+        visibleMirrors() {
+            return this.mirrors;
         },
     },
 
@@ -489,13 +503,40 @@ const update = defineComponent({
             }
         },
 
-        // 镜像源变更处理
-        onMirrorChange() {
-            const mirror = this.mirrors.find(m => m.id === this.selectedMirror);
+        // 选择镜像源
+        selectMirror(mirrorId: string) {
+            const mirror = this.mirrors.find(m => m.id === mirrorId);
             if (mirror) {
+                this.selectedMirror = mirrorId;
                 this.currentMirror = mirror;
                 this.useMirror = mirror.enabled;
+                this.updateSliderPosition();
                 showInfo(`已切换到镜像源: ${mirror.name}`);
+            }
+        },
+
+        // 滑动栏点击事件
+        onSliderClick(event: any) {
+            // 获取点击位置相对于滑动轨道的百分比
+            const trackRect = event.target.getBoundingClientRect();
+            const clickX = event.clientX - trackRect.left;
+            const percentage = (clickX / trackRect.width) * 100;
+            
+            // 将百分比映射到镜像源索引
+            const index = Math.min(Math.floor(percentage / 25), this.mirrors.length - 1);
+            const selectedMirror = this.mirrors[index];
+            
+            if (selectedMirror) {
+                this.selectMirror(selectedMirror.id);
+            }
+        },
+
+        // 更新滑动栏位置
+        updateSliderPosition() {
+            const index = this.mirrors.findIndex(m => m.id === this.selectedMirror);
+            if (index >= 0) {
+                // 计算位置百分比 (0%, 33%, 66%, 100%)
+                this.sliderPosition = index * (100 / (this.mirrors.length - 1));
             }
         },
 
