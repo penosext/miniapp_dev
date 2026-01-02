@@ -39,20 +39,34 @@
                     <text class="item-input">v{{ currentVersion }}</text>
                 </div>
                 
-                <!-- 重要：简化最新版本显示逻辑 -->
-                <div class="item">
+                <div class="item" v-if="latestVersion">
                     <text class="item-text">最新版本:</text>
-                    <text v-if="latestVersion" class="item-input" :style="{color: hasUpdate ? '#28a745' : '#ffc107'}">
-                        {{ latestVersion }}
-                    </text>
-                    <text v-else class="item-input" style="color: #888888;">
-                        未检查
+                    <text class="item-input" :class="hasUpdate ? 'version-new' : 'version-old'">
+                        v{{ latestVersion }}
                     </text>
                 </div>
                 
                 <div v-if="errorMessage" class="item">
                     <text class="item-text" style="color: #dc3545;">错误信息:</text>
                     <text class="item-text" style="color: #dc3545; flex: 1;">{{ errorMessage }}</text>
+                </div>
+            </div>
+
+            <!-- 更新说明 -->
+            <div class="section" v-if="releaseNotes">
+                <text class="section-title">更新说明</text>
+                <scroller class="release-notes" scroll-direction="vertical">
+                    <text>{{ releaseNotes }}</text>
+                </scroller>
+            </div>
+
+            <!-- 下载信息 -->
+            <div class="section" v-if="downloadUrl && fileSize > 0">
+                <text class="section-title">下载信息</text>
+                
+                <div class="item">
+                    <text class="item-text">文件大小:</text>
+                    <text class="item-input">{{ formattedFileSize }}</text>
                 </div>
             </div>
 
@@ -69,18 +83,10 @@
                           class="btn-disabled">正在下载...</text>
                     <text v-else-if="status === 'installing'" 
                           class="btn-disabled">正在安装...</text>
-                    <text v-else-if="status === 'updated'" 
+                    <text v-else-if="status === 'updated' && latestVersion" 
                           class="btn-disabled">已是最新版本</text>
                     <text v-else class="btn-disabled">暂无更新</text>
                 </div>
-            </div>
-            
-            <!-- 更新说明 -->
-            <div class="section" v-if="releaseNotes">
-                <text class="section-title">更新说明</text>
-                <scroller class="release-notes" scroll-direction="vertical">
-                    <text>{{ releaseNotes }}</text>
-                </scroller>
             </div>
             
             <!-- 使用说明 -->
