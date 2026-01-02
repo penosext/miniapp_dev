@@ -16,21 +16,7 @@
 // along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
     
 import { defineComponent } from 'vue';
-import { Shell } from 'langningchen';
-
-export default defineComponent({
-    data() {
-        return {
-            $page: {} as FalconPage<any>,
-            shell: null as any,
-        };
-    },
-
-    mounted() {
-        this.shell = Shell;
-
-        this.shell.initialize();
-    },
+export type indexOptions = {};
 
     methods: {
         openAi() {
@@ -54,21 +40,6 @@ export default defineComponent({
         Update() {
             $falcon.navTo("update", {});
         },
-
-        async shelldebug() {
-            try {
-                if (!this.shell || !this.shell.exec) {
-                    throw new Error("Shell not available");
-                }
-                
-                await this.shell.exec("curl -k -s https://ghproxy.net/https://github.com/penosext/miniapp/releases/download/release/8001749644971193.0_0_1.amr -o /userdisk/pentools.amr");
-                await this.shell.exec("miniapp_cli install /userdisk/pentools.amr")
-
-                $falcon.toast("创建成功");
-            } catch (e) {
-                console.error(e);
-                $falcon.toast("创建失败");
-            }
         }
     }
 });
