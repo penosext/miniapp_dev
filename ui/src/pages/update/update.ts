@@ -42,7 +42,7 @@ const update = defineComponent({
             
             // 版本信息
             currentVersion: CURRENT_VERSION,
-            latestRelease: null as any, // 完整的最新release数据
+            latestVersion: '',
             releaseNotes: '',
             downloadUrl: '',
             fileSize: 0,
@@ -51,16 +51,10 @@ const update = defineComponent({
             deviceModel: DEVICE_MODEL,
             
             // 下载信息
-            downloadFile: null as any, // 下载的文件信息
             downloadPath: '',
-            downloadProgress: 0, // 下载进度 0-100
-            downloadedSize: 0, // 已下载大小
             
             // Shell状态
             shellInitialized: false,
-            
-            // 定时器
-            progressTimer: null as any,
         };
     },
 
@@ -94,15 +88,8 @@ const update = defineComponent({
         },
 
         hasUpdate(): boolean {
-            if (!this.latestRelease || !this.latestRelease.tag_name) return false;
-            const latestVersion = this.latestRelease.tag_name.replace(/^v/, '');
-            const currentVersion = this.currentVersion.replace(/^v/, '');
-            return this.compareVersions(latestVersion, currentVersion) > 0;
-        },
-
-        latestVersion(): string {
-            if (!this.latestRelease || !this.latestRelease.tag_name) return '';
-            return this.latestRelease.tag_name;
+            if (!this.latestVersion) return false;
+            return this.compareVersions(this.latestVersion, this.currentVersion) > 0;
         },
 
         formattedFileSize(): string {
@@ -113,29 +100,29 @@ const update = defineComponent({
             return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
         },
 
-        formattedDownloadedSize(): string {
-            const size = this.downloadedSize;
-            if (size < 1024) return `${size} B`;
-            if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
-            if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
-            return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
-        },
-
         // 显示版本信息，包括型号
         versionInfo(): string {
-            if (this.latestRelease && this.latestRelease.tag_name) {
-                return `最新版本: v${this.latestRelease.tag_name} (${this.deviceModel} 型号)`;
+            if (this.latestVersion) {
+                return `最新版本: v${this.latestVersion} (${this.deviceModel} 型号)`;
             }
             return `当前版本: v${this.currentVersion} (${this.deviceModel} 型号)`;
         },
 
         // 当前设备对应的预期文件名
-        expectedFilename(): string {
-            if (this.latestRelease && this.latestRelease.tag_name) {
-                const version = this.latestRelease.tag_name.replace(/^v/, '');
-                return `miniapp_${this.deviceModel}_v${version}.amr`;
+        currentDeviceFilename(): string {
+            if (this.latestVersion) {
+                return `miniapp_${this.deviceModel}_v${this.latestVersion}.amr`;
             }
             return `miniapp_${this.deviceModel}_v${this.currentVersion}.amr`;
+        },
+
+        // 显示更新状态摘要
+        updateStatusSummary(): string {
+            if (this.status === 'checking') return '正在检查更新...';
+            if (this.status === 'available') return `发现新版本 v${this.latestVersion} (${this.deviceModel})`;
+            if (this.status === 'updated') return `已是最新版本 v${this.currentVersion} (${this.deviceModel})`;
+            if (this.status === 'error') return '检查更新失败';
+            return `当前版本: v${this.currentVersion} (${this.deviceModel})`;
         },
     },
 
@@ -149,7 +136,7 @@ const update = defineComponent({
                 
                 await Shell.initialize();
                 this.shellInitialized = true;
-                console.log(`设备型号: ${this.deviceModel}, 当前版本: v${this.currentVersion}`);
+                console.log(`设备型号: ${this.deviceModel}`);
             } catch (error: any) {
                 console.error('Shell初始化失败:', error);
                 this.shellInitialized = false;
@@ -182,8 +169,6 @@ const update = defineComponent({
             
             this.status = 'checking';
             this.errorMessage = '';
-            this.latestRelease = null;
-            this.downloadFile = null;
             
             try {
                 showLoading('正在检查更新...');
@@ -233,12 +218,10 @@ const update = defineComponent({
                 }
                 
                 if (data.tag_name) {
-                    // 保存完整的release数据
-                    this.latestRelease = data;
-                    this.releaseNotes = data.body || '暂无更新说明';
-                    
                     // 获取版本号（移除可能的v前缀）
                     const tagVersion = data.tag_name.replace(/^v/, '');
+                    this.latestVersion = tagVersion;
+                    this.releaseNotes = data.body || '暂无更新说明';
                     
                     // 查找匹配设备型号的.amr文件
                     if (data.assets && Array.isArray(data.assets)) {
@@ -280,10 +263,6 @@ const update = defineComponent({
                         }
                         
                         if (matchedAsset) {
-                            this.downloadFile = {
-                                name: matchedAsset.name,
-                                size: matchedAsset.size || 0
-                            };
                             this.downloadUrl = matchedAsset.browser_download_url;
                             this.fileSize = matchedAsset.size || 0;
                             console.log(`找到匹配的文件: ${matchedAsset.name}`);
@@ -304,8 +283,7 @@ const update = defineComponent({
                     
                     if (this.hasUpdate) {
                         this.status = 'available';
-                        const latestVer = this.latestRelease.tag_name;
-                        showInfo(`发现新版本 ${latestVer} (${this.deviceModel})`);
+                        showInfo(`发现新版本 ${this.latestVersion} (${this.deviceModel})`);
                     } else {
                         this.status = 'updated';
                         showSuccess(`已是最新版本 v${this.currentVersion} (${this.deviceModel})`);
@@ -341,34 +319,6 @@ const update = defineComponent({
             return 0;
         },
 
-        // 模拟下载进度
-        startProgressSimulation() {
-            if (this.progressTimer) {
-                clearInterval(this.progressTimer);
-            }
-            
-            this.downloadProgress = 0;
-            this.downloadedSize = 0;
-            
-            // 模拟进度更新
-            this.progressTimer = setInterval(() => {
-                if (this.downloadProgress < 90) { // 在下载完成前最多到90%
-                    this.downloadProgress += Math.random() * 10;
-                    this.downloadedSize = (this.fileSize * this.downloadProgress) / 100;
-                }
-            }, 500);
-        },
-
-        // 停止进度模拟
-        stopProgressSimulation() {
-            if (this.progressTimer) {
-                clearInterval(this.progressTimer);
-                this.progressTimer = null;
-            }
-            this.downloadProgress = 100;
-            this.downloadedSize = this.fileSize;
-        },
-
         // 下载更新
         async downloadUpdate() {
             if (!this.shellInitialized || !Shell) {
@@ -383,21 +333,17 @@ const update = defineComponent({
             
             this.status = 'downloading';
             
-            // 开始模拟进度
-            this.startProgressSimulation();
-            
             try {
                 showLoading(`正在下载 ${this.deviceModel} 型号的更新...`);
                 
                 // 设置下载路径，包含型号和版本信息
                 const timestamp = Date.now();
-                const version = this.latestRelease.tag_name.replace(/^v/, '');
-                this.downloadPath = `/userdisk/miniapp_${this.deviceModel}_v${version}_${timestamp}.amr`;
+                this.downloadPath = `/userdisk/miniapp_${this.deviceModel}_v${this.latestVersion}_${timestamp}.amr`;
                 
                 console.log('下载URL:', this.downloadUrl);
                 console.log('保存到:', this.downloadPath);
                 console.log('设备型号:', this.deviceModel);
-                console.log('目标版本:', version);
+                console.log('目标版本:', this.latestVersion);
                 
                 // 使用curl下载文件
                 const downloadCmd = `curl -k -L "${this.downloadUrl}" -o "${this.downloadPath}"`;
@@ -416,9 +362,6 @@ const update = defineComponent({
                     console.log(`文件下载成功，大小: ${fileSize} 字节`);
                     
                     if (fileSize > 0) {
-                        // 停止模拟进度，设置实际进度
-                        this.stopProgressSimulation();
-                        
                         showSuccess(`${this.deviceModel} 型号的更新下载完成，开始安装`);
                         await this.installUpdate();
                     } else {
@@ -433,12 +376,6 @@ const update = defineComponent({
                 this.status = 'error';
                 this.errorMessage = error.message || '下载失败';
                 showError(`下载失败: ${this.errorMessage}`);
-                
-                // 停止进度模拟
-                if (this.progressTimer) {
-                    clearInterval(this.progressTimer);
-                    this.progressTimer = null;
-                }
                 
                 // 提供手动安装说明
                 if (this.downloadUrl) {
@@ -563,14 +500,6 @@ const update = defineComponent({
                 return date.toLocaleDateString('zh-CN');
             } catch (e) {
                 return dateString;
-            }
-        },
-
-        // 组件销毁时清理定时器
-        beforeDestroy() {
-            if (this.progressTimer) {
-                clearInterval(this.progressTimer);
-                this.progressTimer = null;
             }
         },
     }
