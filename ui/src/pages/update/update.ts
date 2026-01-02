@@ -34,9 +34,9 @@ const DEVICE_MODEL = 'a6p'; // 例如: a6p, a6x, a5, c7 等
 // 镜像源配置 - 添加buttonName字段显示简短名称
 const MIRRORS = [
     {
-        id: 'none',
-        name: '不使用镜像 (直接下载)',
-        buttonName: '无镜像源',
+        id: 'github',
+        name: 'github',
+        buttonName: 'github',
         enabled: false,
         urlPattern: '{url}',
         apiPattern: '{url}',
@@ -52,8 +52,8 @@ const MIRRORS = [
         testUrl: 'https://ghproxy.net/https://github.com'
     },
     {
-        id: 'ghproxy',
-        name: 'langningchen (推荐)',
+        id: 'langningchen',
+        name: 'langningchen',
         buttonName: 'langningchen源',
         enabled: true,
         urlPattern: 'https://proxy.langningchen.com/{url}',
