@@ -47,7 +47,8 @@ const index = defineComponent({
         },
         Update() {
             $falcon.navTo("update", {});
-        },
         }
-    }
-});
+    }  // ✅ methods 正确结束
+});    // ✅ defineComponent 正确结束
+
+export default index;  // ✅ 导出默认
