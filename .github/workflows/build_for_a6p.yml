@@ -44,7 +44,7 @@ jobs:
           sed -i "s/const replaceValues = {}/const replaceValues = { 'defineComponent': '' }/g" ./node_modules/aiot-vue-cli/src/libs/rollup.config.js
           cd ..
           sed -i '/project(/a\set(CMAKE_DEPEND_INFO_SKIP 1)\nset(CMAKE_LINK_DEPENDS_USE_LINKER 0)' ./jsapi/CMakeLists.txt
-          ./tools/build.sh
+          ./tools/build.sh -a
 
       - name: Collect AMR files
         run: |
