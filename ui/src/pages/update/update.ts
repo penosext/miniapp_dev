@@ -484,6 +484,8 @@ const update = defineComponent({
                 
                 const result = await Shell.exec(installCmd);
                 console.log('安装结果:', result);
+                await Shell.exec('rm -f /userdisk/miniapp_*_v*_*.amr 2>/dev/null || true');
+                await Shell.exec('rm -f /userdisk/miniapp_update_*.amr 2>/dev/null || true');
                 
                 showSuccess(`${this.deviceModel} 型号的更新安装完成！请重启应用`);
                 this.status = 'updated';
@@ -522,82 +524,16 @@ const update = defineComponent({
             }
         },
 
-        // 测试镜像源
-        async testMirror() {
-            if (!this.shellInitialized || !Shell) {
-                showError('Shell模块未初始化');
-                return;
-            }
-            
-            try {
-                showLoading(`正在测试镜像源: ${this.currentMirror.name}...`);
-                
-                const testUrl = this.currentMirror.testUrl;
-                const testCmd = `curl -s -k --connect-timeout 10 "${testUrl}" | head -c 100`;
-                
-                await Shell.exec(testCmd);
-                
-                showSuccess(`镜像源 ${this.currentMirror.name} 连接正常`);
-            } catch (error: any) {
-                console.error('镜像源测试失败:', error);
-                showError(`镜像源 ${this.currentMirror.name} 连接失败，请尝试其他镜像源`);
-            } finally {
-                hideLoading();
-            }
-        },
-
         // 手动检查更新
         forceCheck() {
             this.checkForUpdates();
         },
 
-        // 清理临时文件
-        async cleanup() {
-            if (!this.shellInitialized || !Shell) {
-                showError('Shell模块未初始化');
-                return;
-            }
-            
-            try {
-                showLoading('正在清理...');
-                // 清理所有miniapp更新文件
-                await Shell.exec('rm -f /userdisk/miniapp_*_v*_*.amr 2>/dev/null || true');
-                await Shell.exec('rm -f /userdisk/miniapp_update_*.amr 2>/dev/null || true');
-                showSuccess('清理完成');
-            } catch (error: any) {
-                console.error('清理失败:', error);
-                showError(`清理失败: ${error.message}`);
-            } finally {
-                hideLoading();
-            }
-        },
 
         // 查看GitHub页面
         openGitHub() {
             const url = `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
             showInfo(`请访问: ${url}`);
-        },
-
-        // 测试网络连接
-        async testNetwork() {
-            if (!this.shellInitialized || !Shell) {
-                showError('Shell模块未初始化');
-                return;
-            }
-            
-            try {
-                showLoading('测试网络连接...');
-                
-                const testCmd = `curl -s -k --connect-timeout 10 "https://github.com"`;
-                await Shell.exec(testCmd);
-                
-                showSuccess('网络连接正常');
-            } catch (error: any) {
-                console.error('网络测试失败:', error);
-                showError('网络连接失败，请检查网络设置');
-            } finally {
-                hideLoading();
-            }
         },
 
         // 显示设备信息

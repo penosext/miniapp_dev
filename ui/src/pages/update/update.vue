@@ -68,17 +68,13 @@
 <text class="section-title">操作</text>
 
 <div class="item">
-<text v-if="hasUpdate&&status==='available'" @click="downloadUpdate" class="btn btn-success">下载并安装更新</text>
+<text v-if="hasUpdate&&status==='available'" @click="downloadUpdate" class="btn btn-success">下载</text>
 <text v-else-if="status==='downloading'||status==='installing'" class="btn btn-disabled" style="opacity:0.5;">正在处理...</text>
 <text v-else class="btn btn-disabled" style="opacity:0.5;">暂无更新</text>
 </div>
 
 <div class="operations-grid">
 <text @click="openGitHub" class="operation-btn operation-btn-info">GitHub页面</text>
-<text @click="testNetwork" class="operation-btn operation-btn-info">测试网络</text>
-<text @click="testMirror" class="operation-btn operation-btn-info">测试镜像源</text>
-<text @click="cleanup" class="operation-btn operation-btn-warning">清理临时文件</text>
-<text @click="$page.finish()" class="operation-btn">返回</text>
 </div>
 </div>
 
