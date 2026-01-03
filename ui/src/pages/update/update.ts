@@ -44,7 +44,7 @@ const MIRRORS = [
     },
     {
         id: 'ghproxy',
-        name: 'ghproxy源',
+        name: 'ghproxy',
         buttonName: 'ghproxy源',
         enabled: true,
         urlPattern: 'https://ghproxy.net/{url}',
@@ -71,7 +71,7 @@ const MIRRORS = [
     },
     {
         id: 'ghproxycn',
-        name: 'ghproxycn源',
+        name: 'ghproxycn',
         buttonName: 'ghproxycn源',
         enabled: true,
         urlPattern: 'https://ghproxy.com/{url}',
@@ -80,7 +80,7 @@ const MIRRORS = [
     },
     {
         id: 'kgithub',
-        name: 'kgithub源',
+        name: 'kgithub',
         buttonName: 'kgithub源',
         enabled: true,
         urlPattern: 'https://kgithub.com/{path}',
@@ -89,7 +89,7 @@ const MIRRORS = [
     },
     {
         id: 'hubfast',
-        name: 'hubfast源',
+        name: 'hubfast',
         buttonName: 'hubfast源',
         enabled: true,
         urlPattern: 'https://hub.fastgit.xyz/{path}',
@@ -127,7 +127,7 @@ const update = defineComponent({
             mirrors: MIRRORS,
             selectedMirror: 'langningchen', // 默认使用ghproxy镜像
             useMirror: true, // 是否使用镜像
-            currentMirror: MIRRORS.find(m => m.id === 'ghproxy') || MIRRORS[0],
+            currentMirror: MIRRORS.find(m => m.id === 'langningchen') || MIRRORS[0],
         };
     },
 
