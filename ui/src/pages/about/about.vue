@@ -1,81 +1,76 @@
-// Copyright (C) 2025 Langning Chen
-// 
-// This file is part of miniapp.
-// 
-// miniapp is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-// 
-// miniapp is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-// 
-// You should have received a copy of the GNU General Public License
-// along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
+<!--
+ Copyright (C) 2025 Langning Chen
+ 
+ This file is part of miniapp.
+ 
+ miniapp is free software: you can redistribute it and/or modify
+ it under the terms of the GNU General Public License as published by
+ the Free Software Foundation, either version 3 of the License, or
+ (at your option) any later version.
+ 
+ miniapp is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
+-->
 
-import { defineComponent } from 'vue';
-
-export type aboutOptions = {};
-
-const about = defineComponent({
-    data() {
-        return {
-            $page: {} as FalconPage<aboutOptions>,
+<template>
+    <div>
+        <scroller class="container" scroll-direction="vertical" :show-scrollbar="true">
+            <!-- 项目信息 -->
+            <div class="section">
+                <text class="section-title">关于应用</text>
+                
+                <div class="info-card">
+                    <text class="project-title">{{ projectName }}</text>
+                    <text class="project-description">{{ description }}</text>
+                </div>
+            </div>
             
-            // 项目信息
-            projectName: '词典笔工具箱',
-            description: '这是一个简单易用的词典笔工具箱，专为词典笔设备设计。应用集成了AI智能助手、文件管理器、文本编辑器、终端命令执行、系统信息查看等多项实用功能。界面简洁直观，操作流畅便捷，支持离线使用，为词典笔用户提供全方位的工具支持，大幅提升使用效率和体验。',
+            <!-- 鸣谢 -->
+            <div class="section">
+                <text class="section-title">开发团队</text>
+                
+                <div class="credits-section">
+                    <text class="credit-title">核心开发者</text>
+                    <text class="credit-names">{{ getCreditsText() }}</text>
+                </div>
+            </div>
             
-            // 鸣谢信息
-            credits: [
-                { name: '@wyxdlz54188', role: '核心开发' },
-                { name: '@langningchen', role: '核心开发' }
-            ],
-            
-            // GitHub 信息
-            githubRepo: 'penosext/miniapp',
-            githubUrl: 'https://github.com/penosext/miniapp'
-        };
-    },
-    
-    mounted() {
-        // 设置返回键支持
-        this.$page.$npage.setSupportBack(true);
-        this.$page.$npage.on("backpressed", this.handleBackPress);
-    },
-    
-    beforeDestroy() {
-        this.$page.$npage.off("backpressed", this.handleBackPress);
-    },
-    
-    methods: {
-        // 处理返回键
-        handleBackPress() {
-            this.$page.finish();
-        },
-        
-        // 打开GitHub页面
-        openGitHub() {
-            $falcon.trigger('open_url', this.githubUrl);
-        },
-        
-        // 复制GitHub链接
-        copyGitHubLink() {
-            $falcon.trigger('copy_text', this.githubUrl);
-        },
-        
-        // 导航到更新页面
-        Update() {
-            $falcon.navTo("update", {});
-        },
-        
-        // 获取鸣谢文本
-        getCreditsText(): string {
-            return this.credits.map(c => `${c.name} (${c.role})`).join('\n');
-        }
-    }
-});
+            <!-- GitHub信息 -->
+            <div class="section">
+                <text class="section-title">项目信息</text>
+                
+                <div class="item">
+                    <text class="item-text">GitHub仓库</text>
+                    <text class="item-input" @click="openGitHub">{{ githubRepo }}</text>
+                    <text @click="copyGitHubLink" class="btn btn-primary">复制链接</text>
+                </div>
+                
+                <div class="item">
+                    <text class="item-text">检测更新</text>
+                    <text class="item-input" @click="Update">点击检测更新</text>
+                </div>
+                
+                <div class="item">
+                    <text class="item-text">许可证</text>
+                    <text class="item-input">GNU General Public License v3.0</text>
+                </div>
+            </div>
+        </scroller>
+    </div>
+</template>
 
-export default about;
+<style lang="less" scoped>
+@import url('about.less');
+</style>
+
+<script>
+import about from './about';
+export default {
+    ...about
+};
+</script>
