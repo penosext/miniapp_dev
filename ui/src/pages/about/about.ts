@@ -61,13 +61,8 @@ const about = defineComponent({
             $falcon.trigger('open_url', this.githubUrl);
         },
         
-        // 复制GitHub链接
-        copyGitHubLink() {
-            $falcon.trigger('copy_text', this.githubUrl);
-        },
-        
         // 导航到更新页面
-        Update() {
+        goToUpdate() {
             $falcon.navTo("update", {});
         },
         
