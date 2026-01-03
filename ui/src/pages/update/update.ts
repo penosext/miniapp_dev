@@ -16,8 +16,6 @@
 // along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
 
 import { defineComponent } from 'vue';
-import { Update } from 'langningchen';
-import { Shell } from 'langningchen';
 import { showError, showSuccess, showInfo } from '../../components/ToastMessage';
 import { hideLoading, showLoading } from '../../components/Loading';
 
@@ -28,7 +26,7 @@ const GITHUB_OWNER = 'penosext';
 const GITHUB_REPO = 'miniapp';
 
 // 当前版本号（每次发布需要更新）
-const CURRENT_VERSION = '1.2.4';
+const CURRENT_VERSION = '1.2.10.5';
 // 设备型号（根据设备设置）
 const DEVICE_MODEL = 'a6p'; // 例如: a6p, a6x, a5, c7 等
 
@@ -173,7 +171,9 @@ const update = defineComponent({
 
         hasUpdate(): boolean {
             if (!this.latestVersion) return false;
-            return this.compareVersions(this.latestVersion, this.currentVersion) > 0;
+            const result = this.compareVersions(this.latestVersion, this.currentVersion);
+            console.log(`版本比较: ${this.latestVersion} vs ${this.currentVersion} = ${result}`);
+            return result > 0;
         },
 
         formattedFileSize(): string {
@@ -397,7 +397,10 @@ const update = defineComponent({
                 this.publishedAt = result.publishedAt || '';
                 
                 // 检查是否有新版本
-                if (result.hasUpdate) {
+                const hasUpdate = this.compareVersions(this.latestVersion, this.currentVersion) > 0;
+                console.log(`Update API 判断是否有更新: ${hasUpdate} (${this.latestVersion} vs ${this.currentVersion})`);
+                
+                if (hasUpdate) {
                     this.status = 'available';
                     
                     // 验证下载文件是否匹配设备型号
@@ -474,8 +477,8 @@ const update = defineComponent({
             }
             
             if (data.tag_name) {
-                // 获取版本号（移除可能的v前缀）
-                const tagVersion = data.tag_name.replace(/^v/, '');
+                // 获取版本号（不移除v前缀，由比较函数处理）
+                const tagVersion = data.tag_name;
                 this.latestVersion = tagVersion;
                 this.releaseNotes = data.body || '暂无更新说明';
                 this.publishedAt = data.published_at || '';
@@ -485,7 +488,7 @@ const update = defineComponent({
                     console.log('可用的资源文件:', data.assets.map((a: any) => a.name));
                     
                     // 构建预期的文件名
-                    const expectedFilename = `miniapp_${this.deviceModel}_v${tagVersion}.amr`;
+                    const expectedFilename = `miniapp_${this.deviceModel}_v${tagVersion.replace(/^v/, '')}.amr`;
                     console.log('预期的文件名:', expectedFilename);
                     
                     // 查找完全匹配的文件
@@ -498,7 +501,7 @@ const update = defineComponent({
                         matchedAsset = data.assets.find((asset: any) => 
                             asset.name && 
                             asset.name.includes(this.deviceModel) && 
-                            asset.name.includes(tagVersion) &&
+                            asset.name.includes(tagVersion.replace(/^v/, '')) &&
                             asset.name.endsWith('.amr')
                         );
                     }
@@ -539,7 +542,11 @@ const update = defineComponent({
                     throw new Error('Release中没有找到资源文件');
                 }
                 
-                if (this.hasUpdate) {
+                // 检查是否有新版本
+                const hasUpdate = this.compareVersions(this.latestVersion, this.currentVersion) > 0;
+                console.log(`Shell 判断是否有更新: ${hasUpdate} (${this.latestVersion} vs ${this.currentVersion})`);
+                
+                if (hasUpdate) {
                     this.status = 'available';
                     showInfo(`发现新版本 ${this.latestVersion} (${this.deviceModel})`);
                 } else {
@@ -551,20 +558,41 @@ const update = defineComponent({
             }
         },
 
-        // 比较版本号
+        // 比较版本号 - 修复版
         compareVersions(v1: string, v2: string): number {
-            // 移除v前缀
-            const version1 = v1.replace(/^v/, '').split('.').map(Number);
-            const version2 = v2.replace(/^v/, '').split('.').map(Number);
+            // 清理版本号字符串
+            const cleanVersion = (version: string): string => {
+                // 移除开头的v字符
+                let cleaned = version.replace(/^v/i, '');
+                // 移除所有非数字和点的字符
+                cleaned = cleaned.replace(/[^0-9.]/g, '');
+                // 确保版本号格式正确
+                return cleaned;
+            };
             
+            const version1 = cleanVersion(v1).split('.').map(Number);
+            const version2 = cleanVersion(v2).split('.').map(Number);
+            
+            console.log(`比较版本: ${v1} => ${version1}, ${v2} => ${version2}`);
+            
+            // 逐段比较版本号
             for (let i = 0; i < Math.max(version1.length, version2.length); i++) {
                 const num1 = version1[i] || 0;
                 const num2 = version2[i] || 0;
                 
-                if (num1 > num2) return 1;
-                if (num1 < num2) return -1;
+                console.log(`  第${i+1}段: ${num1} vs ${num2}`);
+                
+                if (num1 > num2) {
+                    console.log(`  结果: ${v1} > ${v2} (${num1} > ${num2})`);
+                    return 1;
+                }
+                if (num1 < num2) {
+                    console.log(`  结果: ${v1} < ${v2} (${num1} < ${num2})`);
+                    return -1;
+                }
             }
             
+            console.log('  结果: 版本相同');
             return 0;
         },
 
@@ -651,7 +679,8 @@ const update = defineComponent({
             
             // 设置下载路径，包含型号和版本信息
             const timestamp = Date.now();
-            this.downloadPath = `/userdisk/miniapp_${this.deviceModel}_v${this.latestVersion}_${timestamp}.amr`;
+            const cleanVersion = this.latestVersion.replace(/^v/i, '').replace(/[^0-9.]/g, '');
+            this.downloadPath = `/userdisk/miniapp_${this.deviceModel}_v${cleanVersion}_${timestamp}.amr`;
             
             // 获取处理后的下载URL（考虑镜像源）
             const finalDownloadUrl = this.processedUrl;
