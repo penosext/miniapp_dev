@@ -49,17 +49,13 @@
                     <text class="item-text">GitHub仓库</text>
                     <text class="item-input" @click="openGitHub">{{ githubRepo }}</text>
                     <text @click="copyGitHubLink" class="btn btn-primary">复制链接</text>
+                    <text class="item-input" @click="update">检测更新</text>
                 </div>
                 
                 <div class="item">
                     <text class="item-text">许可证</text>
                     <text class="item-input">GNU General Public License v3.0</text>
                 </div>
-            </div>
-            
-            <!-- 返回按钮 -->
-            <div class="btn-area">
-                <text @click="$page.finish()" class="btn btn-primary">返回</text>
             </div>
         </scroller>
     </div>
