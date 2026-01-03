@@ -16,6 +16,7 @@
 // along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
 
 import { defineComponent } from 'vue';
+import { CURRENT_VERSION, DEVICE_MODEL, GITHUB_OWNER, GITHUB_REPO } from '../update/update.ts';
 
 export type aboutOptions = {};
 
@@ -24,9 +25,10 @@ const about = defineComponent({
         return {
             $page: {} as FalconPage<aboutOptions>,
             
-            // 项目信息
+            // 项目信息 - 从update.ts导入
             projectName: '词典笔工具箱',
-            version: '1.2.10.3',
+            version: CURRENT_VERSION,
+            deviceModel: DEVICE_MODEL,
             description: '这是一个简单易用的词典笔工具箱，专为词典笔设备设计。应用集成了AI智能助手、文件管理器、文本编辑器、终端命令执行、系统信息查看等多项实用功能。界面简洁直观，操作流畅便捷，支持离线使用，为词典笔用户提供全方位的工具支持，大幅提升使用效率和体验。',
             
             // 鸣谢信息
@@ -35,9 +37,10 @@ const about = defineComponent({
                 { name: '@langningchen', role: '核心开发' }
             ],
             
-            // GitHub 信息
-            githubRepo: 'penosext/miniapp',
-            githubUrl: 'https://github.com/penosext/miniapp'
+            // GitHub 信息 - 从update.ts导入
+            githubOwner: GITHUB_OWNER,
+            githubRepo: GITHUB_REPO,
+            githubUrl: `https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}`
         };
     },
     
@@ -49,6 +52,18 @@ const about = defineComponent({
     
     beforeDestroy() {
         this.$page.$npage.off("backpressed", this.handleBackPress);
+    },
+    
+    computed: {
+        // 计算完整版本信息
+        fullVersionInfo(): string {
+            return `v${this.version} (${this.deviceModel} 型号)`;
+        },
+        
+        // 计算完整的GitHub仓库地址
+        githubFullRepo(): string {
+            return `${this.githubOwner}/${this.githubRepo}`;
+        }
     },
     
     methods: {
@@ -66,28 +81,12 @@ const about = defineComponent({
         copyGitHubLink() {
             $falcon.trigger('copy_text', this.githubUrl);
         },
-        methods: {
-        openAi() {
-            $falcon.navTo("ai", {});
-        },
-        PenTerm() {
-            $falcon.navTo("shell", {});
-        },
-        Misc() {
-            $falcon.navTo("misc", {});
-        },
-        Deviceinfo() {
-            $falcon.navTo("deviceinfo", {});
-        },
-        FileEditor() {
-            $falcon.navTo("fileEditor", {});
-        },
-        FileManager() {
-            $falcon.navTo("fileManager", {});
-        },
+        
+        // 导航到更新页面
         Update() {
             $falcon.navTo("update", {});
         },
+        
         // 获取鸣谢文本
         getCreditsText(): string {
             return this.credits.map(c => `${c.name} (${c.role})`).join('\n');
