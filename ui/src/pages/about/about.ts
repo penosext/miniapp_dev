@@ -16,7 +16,7 @@
 // along with miniapp.  If not, see <https://www.gnu.org/licenses/>.
 
 import { defineComponent } from 'vue';
-import { CURRENT_VERSION, DEVICE_MODEL, GITHUB_OWNER, GITHUB_REPO } from '../update/update.ts';
+import { CURRENT_VERSION, DEVICE_MODEL, GITHUB_OWNER, GITHUB_REPO } from '../../src/pages//update/update.ts';
 
 export type aboutOptions = {};
 
