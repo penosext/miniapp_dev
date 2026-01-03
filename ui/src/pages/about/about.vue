@@ -44,19 +44,19 @@
             <div class="section">
                 <text class="section-title">项目信息</text>
                 
-                <div class="link-item" @click="openGitHub">
-                    <text class="link-icon">🌐</text>
-                    <text class="link-text">GitHub: {{ githubRepo }}</text>
-                </div>
-                
                 <div class="link-item" @click="goToUpdate">
-                    <text class="link-icon">🔄</text>
+                    <image class="image-icon" resize="contain" :src="require('../../images/refresh.png')" />
                     <text class="link-text">Update页面入口</text>
                 </div>
                 
-                <div class="link-item">
-                    <text class="link-icon">📄</text>
-                    <text class="link-text">许可证: GNU General Public License v3.0</text>
+                <div class="text-item">
+                    <image class="image-icon" resize="contain" :src="require('../..images/license.png')" />
+                    <text class="text-content">许可证: GNU General Public License v3.0</text>
+                </div>
+                
+                <div class="text-item">
+                    <image class="image-icon" resize="contain" :src="require('../../images/repo.png')" />
+                    <text class="text-content">仓库: {{ githubRepo }}</text>
                 </div>
             </div>
         </scroller>
