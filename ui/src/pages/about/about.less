@@ -1,4 +1,4 @@
-/* about.less - 最终简化版关于页面样式 */
+/* about.less - 使用图片图标的关于页面样式 */
 @import url('../../styles/section.less');
 
 /* 项目信息卡片 */
@@ -57,13 +57,19 @@
     white-space: pre-line;
 }
 
-/* 链接项目样式 */
+/* 图片图标样式 */
+.image-icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* 链接项目样式（可点击） */
 .link-item {
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 8px;
-    padding: 10px;
+    gap: 10px;
+    padding: 12px;
     border-bottom: 1px solid #333333;
 }
 
@@ -71,14 +77,33 @@
     background-color: #222222;
 }
 
-.link-icon {
-    font-size: 16px;
-    width: 24px;
-    text-align: center;
+/* 文本项目样式（不可点击） */
+.text-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding: 12px;
+    border-bottom: 1px solid #333333;
 }
 
 .link-text {
     font-size: 14px;
     color: #cccccc;
     flex: 1;
+}
+
+.text-content {
+    font-size: 14px;
+    color: #888888;
+    flex: 1;
+}
+
+/* 图标容器 */
+.icon-container {
+    width: 24px;
+    height: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
