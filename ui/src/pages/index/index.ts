@@ -45,10 +45,10 @@ const index = defineComponent({
         FileManager() {
             $falcon.navTo("fileManager", {});
         },
-        Update() {
-            $falcon.navTo("update", {});
+        About() {
+            $falcon.navTo("about", {});
         }
-    }  // ✅ methods 正确结束
-});    // ✅ defineComponent 正确结束
+    }
+});
 
-export default index;  // ✅ 导出默认
+export default index;
