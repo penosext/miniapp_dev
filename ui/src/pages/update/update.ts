@@ -17,6 +17,7 @@
 
 import { defineComponent } from 'vue';
 import { Update } from 'langningchen';
+import { Shell } from 'langningchen';
 import { showError, showSuccess, showInfo } from '../../components/ToastMessage';
 import { hideLoading, showLoading } from '../../components/Loading';
 
@@ -705,7 +706,7 @@ const update = defineComponent({
                     const result = await Shell.exec(installCmd);
                     console.log('安装结果:', result);
                     
-                    // 清理临时文件
+                    // 安装完成后清理下载文件
                     await this.cleanupDownloadFiles();
                     
                     showSuccess(`${this.deviceModel} 型号的更新安装完成！请重启应用`);
@@ -730,21 +731,34 @@ const update = defineComponent({
             }
         },
 
-        // 清理下载文件
+        // 清理下载文件（只在安装完成后调用）
         async cleanupDownloadFiles() {
             try {
-                // 优先使用Update API
-                if (typeof Update !== 'undefined' && Update.cleanup) {
-                    // 使用Update API清理
-                    const result = Update.cleanup(1); // 清理1天前的文件
-                    console.log('清理下载文件结果:', result);
-                } 
-                // 备用方案：使用Shell
-                else if (typeof Shell !== 'undefined' && Shell.exec) {
-                    const cleanupCmd = 'rm -f /userdisk/miniapp_*_v*_*.amr 2>/dev/null || true';
-                    await Shell.exec(cleanupCmd);
-                    console.log('清理临时文件成功');
+                console.log('安装完成，清理下载文件...');
+                
+                // 清理当前下载的文件
+                if (this.downloadPath) {
+                    if (typeof Shell !== 'undefined' && Shell.exec) {
+                        const cleanupCmd = `rm -f "${this.downloadPath}" 2>/dev/null || true`;
+                        await Shell.exec(cleanupCmd);
+                        console.log(`清理文件: ${this.downloadPath}`);
+                    }
                 }
+                
+                // 清理旧的临时文件
+                if (typeof Shell !== 'undefined' && Shell.exec) {
+                    const oldCleanupCmd = 'rm -f /userdisk/miniapp_*_v*_*.amr 2>/dev/null || true';
+                    await Shell.exec(oldCleanupCmd);
+                    console.log('清理旧的临时文件');
+                }
+                
+                // 尝试使用Update API清理更多文件
+                if (typeof Update !== 'undefined' && Update.cleanup) {
+                    const result = Update.cleanup(1); // 清理1天前的文件
+                    console.log('Update API清理结果:', result);
+                }
+                
+                console.log('文件清理完成');
             } catch (error) {
                 console.warn('清理下载文件失败:', error);
             }
@@ -829,6 +843,15 @@ const update = defineComponent({
                 showError(`测试失败: ${error.message}`);
             } finally {
                 hideLoading();
+            }
+        },
+
+        // 查看当前下载URL
+        showCurrentUrl() {
+            if (this.processedUrl) {
+                showInfo(`当前下载URL: ${this.processedUrl}`);
+            } else {
+                showInfo('暂无下载链接');
             }
         },
     }
