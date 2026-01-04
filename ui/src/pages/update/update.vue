@@ -32,6 +32,17 @@
 <text class="error-content">{{errorMessage}}</text>
 </div>
 
+<!-- 下载进度显示 -->
+<div v-if="status === 'downloading' && fileSize > 0" class="download-progress-card">
+<text class="download-progress-title">下载进度</text>
+<div class="download-progress-bar-container">
+<div class="download-progress-bar" :style="{width: downloadProgress + '%'}"></div>
+</div>
+<text class="download-progress-info">
+{{downloadProgressText || (formattedDownloadedSize + '/' + formattedFileSize)}}
+</text>
+</div>
+
 <!-- 镜像源设置卡片 -->
 <div class="mirror-settings-card">
 <text class="section-title">下载设置</text>
@@ -110,9 +121,10 @@
 3. 只有匹配设备型号的更新才能安装
 4. 左右滑动选择镜像源，点击按钮切换
 5. 如果有匹配的新版本，点击"下载并安装更新"按钮
-6. 下载完成后会自动安装
-7. 安装完成后请重启应用
-8. 如果自动更新失败，可以手动下载安装
+6. 下载时会显示实时进度（已下载/总大小）
+7. 下载完成后会自动安装
+8. 安装完成后请重启应用
+9. 如果自动更新失败，可以手动下载安装
 </text>
 </div>
 
