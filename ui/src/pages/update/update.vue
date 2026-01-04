@@ -152,7 +152,7 @@
   class="operation-btn operation-btn-info" style="flex:1;text-align:center;">
   查看路径
 </text>
-<text @click="installHistoryVersion(getDownloadedVersion(version.version)!.filePath, version.version)"
+<text @click="installDownloadedVersion(version.version)"
   class="operation-btn operation-btn-success" style="flex:1;text-align:center;">
   安装此版本
 </text>
@@ -249,6 +249,14 @@ export default {
 
   methods: {
     ...update.methods,
+    
+    // 安装已下载的版本
+    installDownloadedVersion(version) {
+      const downloaded = this.getDownloadedVersion(version);
+      if (downloaded) {
+        this.installHistoryVersion(downloaded.filePath, downloaded.version);
+      }
+    }
   }
 };
 </script>
