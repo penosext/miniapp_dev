@@ -26,10 +26,10 @@ export type UpdateOptions = {};
 const GITHUB_OWNER = 'penosext';
 const GITHUB_REPO = 'miniapp';
 
-// 当前版本号（每次发布需要更新）
-const CURRENT_VERSION = '1.2.4';
-// 设备型号（根据设备设置）
-const DEVICE_MODEL = 'a6p'; // 例如: a6p, a6x, a5, c7 等
+// 当前版本号（每次发布需要更新）- 已自动更新为1.2.10.5
+const CURRENT_VERSION = '1.2.10.5';
+// 设备型号（根据设备设置）- 已通过构建脚本设置
+const DEVICE_MODEL = process.env.DEVICE || 'a6p'; // 例如: a6p, a6x, a5, c7 等
 
 // 镜像源配置 - 添加buttonName字段显示简短名称
 const MIRRORS = [
@@ -122,7 +122,7 @@ interface DownloadedVersion {
 const update = defineComponent({
     data() {
         return {
-            $page: {} as FalconPage<UpdateOptions>,
+            $page: {} as any,
             
             // 状态
             status: 'idle' as 'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'updated' | 'error',
@@ -251,7 +251,13 @@ const update = defineComponent({
         async initializeShell() {
             try {
                 if (!Shell || typeof Shell.initialize !== 'function') {
-                    throw new Error('Shell模块不可用');
+                    // 尝试从全局对象获取Shell
+                    const globalShell = (window as any).Shell;
+                    if (globalShell && typeof globalShell.initialize === 'function') {
+                        Object.assign(Shell, globalShell);
+                    } else {
+                        throw new Error('Shell模块不可用');
+                    }
                 }
                 
                 await Shell.initialize();
