@@ -98,6 +98,27 @@ const MIRRORS = [
     }
 ];
 
+// 版本信息接口
+interface ReleaseVersion {
+    version: string;
+    date: string;
+    notes: string;
+    downloadUrl: string;
+    fileSize: number;
+    isLatest?: boolean;
+    releaseDate?: string;
+    assetName?: string;
+}
+
+// 已下载版本信息接口
+interface DownloadedVersion {
+    version: string;
+    downloadTime: string;
+    filePath: string;
+    fileSize: number;
+    deviceModel: string;
+}
+
 const update = defineComponent({
     data() {
         return {
@@ -128,6 +149,18 @@ const update = defineComponent({
             selectedMirror: 'langningchen', // 默认使用ghproxy镜像
             useMirror: true, // 是否使用镜像
             currentMirror: MIRRORS.find(m => m.id === 'langningchen') || MIRRORS[0],
+            
+            // 历史版本列表
+            historyVersions: [] as ReleaseVersion[],
+            
+            // 当前下载的历史版本
+            downloadingHistoryVersion: null as string | null,
+            
+            // 已下载历史版本缓存
+            downloadedVersions: [] as DownloadedVersion[],
+            
+            // 展开的版本列表
+            expandedVersions: [] as string[],
         };
     },
 
@@ -197,6 +230,20 @@ const update = defineComponent({
             if (this.status === 'error') return '检查更新失败';
             return `当前版本: v${this.currentVersion} (${this.deviceModel})`;
         },
+
+        // 获取所有版本（包含最新版和历史版）
+        allVersions(): ReleaseVersion[] {
+            const all = [...this.historyVersions];
+            // 确保最新版本在前
+            if (this.latestVersion) {
+                const latest = all.find(v => v.version === this.latestVersion);
+                if (latest) {
+                    const others = all.filter(v => v.version !== this.latestVersion);
+                    return [latest, ...others];
+                }
+            }
+            return all;
+        },
     },
 
     methods: {
@@ -233,7 +280,7 @@ const update = defineComponent({
             }, 1000);
         },
 
-        // 检查更新
+        // 检查更新（获取所有版本）
         async checkForUpdates() {
             if (!this.shellInitialized || !Shell) {
                 showError('Shell模块未初始化');
@@ -242,13 +289,14 @@ const update = defineComponent({
             
             this.status = 'checking';
             this.errorMessage = '';
+            this.historyVersions = []; // 清空历史版本
             
             try {
                 showLoading('正在检查更新...');
                 
-                // 使用Shell curl命令获取GitHub API数据
-                const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`;
-                console.log('检查更新，URL:', apiUrl);
+                // 获取所有版本（不仅仅是最新版本）
+                const apiUrl = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases`;
+                console.log('获取所有版本，URL:', apiUrl);
                 console.log('设备型号:', this.deviceModel);
                 console.log('当前版本:', this.currentVersion);
                 
@@ -277,93 +325,121 @@ const update = defineComponent({
                 }
                 
                 if (!success) {
-                    throw new Error('无法获取更新信息');
+                    throw new Error('无法获取版本信息');
                 }
                 
                 // 解析JSON
-                let data: any;
+                let releases: any[];
                 try {
-                    data = JSON.parse(result);
-                    console.log('GitHub API响应:', data);
+                    releases = JSON.parse(result);
+                    console.log('GitHub API响应，版本数量:', releases.length);
                 } catch (parseError) {
                     console.error('JSON解析失败:', parseError, '原始数据:', result);
                     throw new Error('数据格式错误');
                 }
                 
-                if (data.tag_name) {
-                    // 获取版本号（移除可能的v前缀）
-                    const tagVersion = data.tag_name.replace(/^v/, '');
-                    this.latestVersion = tagVersion;
-                    this.releaseNotes = data.body || '暂无更新说明';
-                    
-                    // 查找匹配设备型号的.amr文件
-                    if (data.assets && Array.isArray(data.assets)) {
-                        console.log('可用的资源文件:', data.assets.map((a: any) => a.name));
-                        
-                        // 构建预期的文件名
-                        const expectedFilename = `miniapp_${this.deviceModel}_v${tagVersion}.amr`;
-                        console.log('预期的文件名:', expectedFilename);
-                        
-                        // 查找完全匹配的文件
-                        let matchedAsset = data.assets.find((asset: any) => 
-                            asset.name && asset.name === expectedFilename
-                        );
-                        
-                        // 如果未找到完全匹配的文件，尝试查找包含型号和版本的文件
-                        if (!matchedAsset) {
-                            matchedAsset = data.assets.find((asset: any) => 
-                                asset.name && 
-                                asset.name.includes(this.deviceModel) && 
-                                asset.name.includes(tagVersion) &&
-                                asset.name.endsWith('.amr')
-                            );
-                        }
-                        
-                        // 如果还未找到，尝试查找包含型号的文件
-                        if (!matchedAsset) {
-                            matchedAsset = data.assets.find((asset: any) => 
-                                asset.name && 
-                                asset.name.includes(this.deviceModel) &&
-                                asset.name.endsWith('.amr')
-                            );
-                        }
-                        
-                        // 如果还未找到，使用第一个.amr文件
-                        if (!matchedAsset) {
-                            matchedAsset = data.assets.find((asset: any) => 
-                                asset.name && asset.name.endsWith('.amr')
-                            );
-                        }
-                        
-                        if (matchedAsset) {
-                            this.downloadUrl = matchedAsset.browser_download_url;
-                            this.fileSize = matchedAsset.size || 0;
-                            console.log(`找到匹配的文件: ${matchedAsset.name}`);
-                            
-                            // 检查文件是否匹配当前设备型号
-                            if (matchedAsset.name.includes(this.deviceModel)) {
-                                console.log(`文件匹配当前设备型号: ${this.deviceModel}`);
-                            } else {
-                                console.warn(`警告: 文件 ${matchedAsset.name} 不匹配当前设备型号 ${this.deviceModel}`);
-                            }
-                        } else {
-                            console.warn('未找到合适的.amr文件');
-                            throw new Error(`未找到适用于 ${this.deviceModel} 型号的更新文件`);
-                        }
-                    } else {
-                        throw new Error('Release中没有找到资源文件');
-                    }
-                    
-                    if (this.hasUpdate) {
-                        this.status = 'available';
-                        showInfo(`发现新版本 ${this.latestVersion} (${this.deviceModel})`);
-                    } else {
-                        this.status = 'updated';
-                        showSuccess(`已是最新版本 v${this.currentVersion} (${this.deviceModel})`);
-                    }
-                } else {
-                    throw new Error('无效的Release数据');
+                if (!Array.isArray(releases)) {
+                    throw new Error('数据格式错误');
                 }
+                
+                // 处理每个版本（最多10个）
+                const processedVersions: ReleaseVersion[] = [];
+                for (const release of releases.slice(0, 10)) {
+                    if (release.tag_name) {
+                        // 获取版本号（移除可能的v前缀）
+                        const tagVersion = release.tag_name.replace(/^v/, '');
+                        
+                        // 跳过当前版本
+                        if (tagVersion === this.currentVersion) continue;
+                        
+                        // 查找匹配设备型号的.amr文件
+                        let matchedAsset = null;
+                        if (release.assets && Array.isArray(release.assets)) {
+                            console.log(`版本 ${tagVersion} 的资源文件:`, release.assets.map((a: any) => a.name));
+                            
+                            // 构建预期的文件名
+                            const expectedFilename = `miniapp_${this.deviceModel}_v${tagVersion}.amr`;
+                            console.log('预期的文件名:', expectedFilename);
+                            
+                            // 查找完全匹配的文件
+                            matchedAsset = release.assets.find((asset: any) => 
+                                asset.name && asset.name === expectedFilename
+                            );
+                            
+                            // 如果未找到完全匹配的文件，尝试查找包含型号和版本的文件
+                            if (!matchedAsset) {
+                                matchedAsset = release.assets.find((asset: any) => 
+                                    asset.name && 
+                                    asset.name.includes(this.deviceModel) && 
+                                    asset.name.includes(tagVersion) &&
+                                    asset.name.endsWith('.amr')
+                                );
+                            }
+                            
+                            // 如果还未找到，尝试查找包含型号的文件
+                            if (!matchedAsset) {
+                                matchedAsset = release.assets.find((asset: any) => 
+                                    asset.name && 
+                                    asset.name.includes(this.deviceModel) &&
+                                    asset.name.endsWith('.amr')
+                                );
+                            }
+                            
+                            // 如果还未找到，使用第一个.amr文件
+                            if (!matchedAsset) {
+                                matchedAsset = release.assets.find((asset: any) => 
+                                    asset.name && asset.name.endsWith('.amr')
+                                );
+                            }
+                            
+                            if (matchedAsset) {
+                                const versionInfo: ReleaseVersion = {
+                                    version: tagVersion,
+                                    date: release.created_at || release.published_at || '',
+                                    notes: release.body || '暂无更新说明',
+                                    downloadUrl: matchedAsset.browser_download_url,
+                                    fileSize: matchedAsset.size || 0,
+                                    assetName: matchedAsset.name,
+                                    releaseDate: release.published_at ? this.formatDate(release.published_at) : '未知'
+                                };
+                                
+                                processedVersions.push(versionInfo);
+                                console.log(`找到版本 ${tagVersion}, 文件: ${matchedAsset.name}, 大小: ${versionInfo.fileSize}`);
+                            }
+                        }
+                    }
+                }
+                
+                // 排序：最新版本在前
+                processedVersions.sort((a, b) => this.compareVersions(b.version, a.version));
+                
+                // 设置历史版本
+                this.historyVersions = processedVersions;
+                
+                // 如果有版本，设置最新版本信息
+                if (processedVersions.length > 0) {
+                    const latestVersionInfo = processedVersions[0];
+                    latestVersionInfo.isLatest = true;
+                    
+                    this.latestVersion = latestVersionInfo.version;
+                    this.releaseNotes = latestVersionInfo.notes;
+                    this.downloadUrl = latestVersionInfo.downloadUrl;
+                    this.fileSize = latestVersionInfo.fileSize;
+                    
+                    console.log(`设置最新版本: ${this.latestVersion}`);
+                }
+                
+                // 设置状态
+                if (this.hasUpdate) {
+                    this.status = 'available';
+                    showInfo(`发现新版本 ${this.latestVersion} (${this.deviceModel})`);
+                } else {
+                    this.status = 'updated';
+                    showSuccess(`已是最新版本 v${this.currentVersion} (${this.deviceModel})`);
+                }
+                
+                // 加载已下载的历史版本缓存
+                await this.loadDownloadedVersions();
                 
             } catch (error: any) {
                 console.error('检查更新失败:', error);
@@ -392,7 +468,7 @@ const update = defineComponent({
             return 0;
         },
 
-        // 下载更新
+        // 下载更新（最新版本）
         async downloadUpdate() {
             if (!this.shellInitialized || !Shell) {
                 showError('Shell模块未初始化');
@@ -473,7 +549,7 @@ const update = defineComponent({
             }
         },
 
-        // 安装更新
+        // 安装更新（最新版本）
         async installUpdate() {
             if (!this.shellInitialized || !Shell) {
                 showError('无法安装更新');
@@ -522,6 +598,188 @@ const update = defineComponent({
             }
         },
 
+        // 下载历史版本
+        async downloadHistoryVersion(version: ReleaseVersion) {
+            if (!this.shellInitialized || !Shell) {
+                showError('Shell模块未初始化');
+                return;
+            }
+            
+            this.downloadingHistoryVersion = version.version;
+            
+            try {
+                showLoading(`正在下载历史版本 v${version.version}...`);
+                
+                // 设置下载路径，包含版本信息
+                const timestamp = Date.now();
+                const downloadPath = `/userdisk/miniapp_${this.deviceModel}_v${version.version}_${timestamp}.amr`;
+                
+                // 根据是否使用镜像源构建下载URL
+                let finalDownloadUrl = version.downloadUrl;
+                if (this.useMirror && this.currentMirror.enabled) {
+                    if (this.currentMirror.urlPattern.includes('{url}')) {
+                        finalDownloadUrl = this.currentMirror.urlPattern.replace('{url}', version.downloadUrl);
+                    } else if (this.currentMirror.urlPattern.includes('{path}')) {
+                        const urlObj = new URL(version.downloadUrl);
+                        const path = urlObj.pathname + urlObj.search;
+                        finalDownloadUrl = this.currentMirror.urlPattern.replace('{path}', path);
+                    }
+                }
+                
+                console.log('下载历史版本 URL:', finalDownloadUrl);
+                console.log('保存到:', downloadPath);
+                
+                // 使用curl下载文件
+                const downloadCmd = `curl -k -L "${finalDownloadUrl}" -o "${downloadPath}"`;
+                await Shell.exec(downloadCmd);
+                
+                // 检查文件是否下载成功
+                const checkCmd = `test -f "${downloadPath}" && echo "exists"`;
+                const checkResult = await Shell.exec(checkCmd);
+                
+                if (checkResult.trim() === 'exists') {
+                    // 获取文件大小
+                    const sizeCmd = `wc -c < "${downloadPath}"`;
+                    const fileSize = parseInt(await Shell.exec(sizeCmd)) || 0;
+                    
+                    if (fileSize > 0) {
+                        // 保存下载记录
+                        const downloadRecord: DownloadedVersion = {
+                            version: version.version,
+                            downloadTime: new Date().toISOString(),
+                            filePath: downloadPath,
+                            fileSize: fileSize,
+                            deviceModel: this.deviceModel
+                        };
+                        
+                        // 添加到已下载列表
+                        this.downloadedVersions.push(downloadRecord);
+                        
+                        // 保存到本地存储
+                        await this.saveDownloadedVersions();
+                        
+                        showSuccess(`历史版本 v${version.version} 下载完成`);
+                        
+                        // 自动展开该版本的详细信息
+                        this.toggleVersionDetails(version.version);
+                    } else {
+                        throw new Error('下载的文件为空');
+                    }
+                } else {
+                    throw new Error('文件下载失败');
+                }
+                
+            } catch (error: any) {
+                console.error('下载历史版本失败:', error);
+                showError(`下载历史版本失败: ${error.message || '未知错误'}`);
+                
+                // 提供手动下载说明
+                if (version.downloadUrl) {
+                    showInfo(`手动下载: ${version.downloadUrl}`);
+                }
+            } finally {
+                this.downloadingHistoryVersion = null;
+                hideLoading();
+            }
+        },
+
+        // 安装历史版本
+        async installHistoryVersion(filePath: string, version: string) {
+            if (!this.shellInitialized || !Shell) {
+                showError('无法安装');
+                return;
+            }
+            
+            try {
+                showLoading(`正在安装历史版本 v${version}...`);
+                
+                // 执行安装命令
+                const installCmd = `miniapp_cli install "${filePath}"`;
+                console.log('执行安装命令:', installCmd);
+                
+                await Shell.exec(installCmd);
+                showSuccess(`历史版本 v${version} 安装完成！请重启应用`);
+                
+                // 清理其他历史版本文件
+                await this.cleanupOldHistoryFiles();
+                
+            } catch (error: any) {
+                console.error('安装历史版本失败:', error);
+                showError(`安装失败: ${error.message || '未知错误'}`);
+            } finally {
+                hideLoading();
+            }
+        },
+
+        // 加载已下载的历史版本
+        async loadDownloadedVersions() {
+            try {
+                // 扫描目录查找已下载的文件
+                const scanCmd = `find /userdisk -name "miniapp_${this.deviceModel}_v*.amr" 2>/dev/null | head -10`;
+                const result = await Shell.exec(scanCmd);
+                
+                if (result.trim()) {
+                    const files = result.trim().split('\n');
+                    for (const file of files) {
+                        if (file.trim()) {
+                            try {
+                                // 解析文件名获取版本信息
+                                const filename = file.split('/').pop() || '';
+                                const regex = new RegExp(`miniapp_${this.deviceModel}_v(\\d+\\.\\d+\\.\\d+)_(\\d+)\\.amr`);
+                                const match = filename.match(regex);
+                                
+                                if (match) {
+                                    const version = match[1];
+                                    const timestamp = parseInt(match[2]);
+                                    
+                                    // 获取文件大小
+                                    const sizeCmd = `wc -c < "${file}"`;
+                                    const fileSize = parseInt(await Shell.exec(sizeCmd)) || 0;
+                                    
+                                    this.downloadedVersions.push({
+                                        version: version,
+                                        downloadTime: new Date(timestamp).toISOString(),
+                                        filePath: file,
+                                        fileSize: fileSize,
+                                        deviceModel: this.deviceModel
+                                    });
+                                }
+                            } catch (e) {
+                                console.warn('解析已下载文件失败:', file, e);
+                            }
+                        }
+                    }
+                }
+            } catch (error) {
+                console.warn('加载已下载版本失败:', error);
+            }
+        },
+
+        // 保存已下载版本记录
+        async saveDownloadedVersions() {
+            try {
+                // 限制最多保存5个下载记录
+                if (this.downloadedVersions.length > 5) {
+                    this.downloadedVersions = this.downloadedVersions.slice(-5);
+                }
+                console.log('已下载版本:', this.downloadedVersions);
+            } catch (error) {
+                console.warn('保存下载记录失败:', error);
+            }
+        },
+
+        // 清理旧的历史文件
+        async cleanupOldHistoryFiles() {
+            try {
+                // 保留最新3个历史文件，删除其他
+                const cleanupCmd = `ls -t /userdisk/miniapp_${this.deviceModel}_v*.amr 2>/dev/null | tail -n +4 | xargs rm -f 2>/dev/null || true`;
+                await Shell.exec(cleanupCmd);
+                console.log('清理旧历史文件完成');
+            } catch (error) {
+                console.warn('清理历史文件失败:', error);
+            }
+        },
+
         // 选择镜像源
         selectMirror(mirrorId: string) {
             const mirror = this.mirrors.find(m => m.id === mirrorId);
@@ -537,7 +795,6 @@ const update = defineComponent({
         forceCheck() {
             this.checkForUpdates();
         },
-
 
         // 查看GitHub页面
         openGitHub() {
@@ -559,6 +816,50 @@ const update = defineComponent({
                 return dateString;
             }
         },
+
+        // 格式化文件大小
+        formatFileSize(bytes: number): string {
+            if (bytes < 1024) return `${bytes} B`;
+            if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+            if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+            return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+        },
+
+        // 切换版本详情显示
+        toggleVersionDetails(version: string) {
+            const index = this.expandedVersions.indexOf(version);
+            if (index > -1) {
+                this.expandedVersions.splice(index, 1);
+            } else {
+                this.expandedVersions.push(version);
+            }
+        },
+
+        // 显示文件路径
+        showFilePath(filePath: string) {
+            showInfo(`文件路径: ${filePath}\n\n安装命令:\nminiapp_cli install "${filePath}"`);
+        },
+
+        // 获取已下载的版本
+        getDownloadedVersion(version: string): DownloadedVersion | undefined {
+            return this.downloadedVersions.find(v => v.version === version);
+        },
+
+        // 显示安装路径
+        showInstallPath(version: string) {
+            const downloaded = this.getDownloadedVersion(version);
+            if (downloaded) {
+                this.showFilePath(downloaded.filePath);
+            } else {
+                showError('该版本尚未下载');
+            }
+        },
+
+        // 清空已下载版本
+        clearDownloadedVersions() {
+            this.downloadedVersions = [];
+            showInfo('已清空下载记录');
+        }
     }
 });
 
