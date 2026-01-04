@@ -44,16 +44,11 @@
 <div class="version-info">
 <div class="version-line">
 <text class="version-label">当前版本:</text>
-<text class="version-value version-old">{{currentVersion}} 
-<span v-if="currentVersion === latestVersion" class="version-tag tag-latest">最新</span>
-<span v-else class="version-tag tag-current">当前</span>
-</text>
+<text class="version-value version-old">{{currentVersion}}</text>
 </div>
 <div class="version-line">
 <text class="version-label">最新版本:</text>
-<text class="version-value version-new">{{latestVersion}} 
-<span class="version-tag tag-latest">最新</span>
-</text>
+<text class="version-value version-new">{{latestVersion}}</text>
 </div>
 <div v-if="fileSize>0" class="version-line">
 <text class="version-label">文件大小:</text>
@@ -88,8 +83,7 @@
 <div v-if="allVersions.length > 0" class="section">
 <text class="section-title">历史版本下载</text>
 <text style="font-size:12px;color:#888888;margin-bottom:10px;line-height:16px;">
-  注：可以下载历史版本，下载后点击"查看路径"获取文件位置，然后手动安装<br>
-  最新版本会标记为<span style="color:#28a745;">绿色</span>，当前版本标记为<span style="color:#ffc107;">黄色</span>
+  注：可以下载历史版本，下载后点击"查看路径"获取文件位置，然后手动安装
 </text>
 
 <scroller class="history-scroll-area" scroll-direction="vertical" :show-scrollbar="true">
@@ -104,8 +98,6 @@
   fontWeight: version.isLatest ? 'bold' : 'normal'
 }">
   {{version.isLatest ? '最新版 v' + version.version : 'v' + version.version}}
-  <text v-if="version.isLatest" class="version-tag tag-latest">最新</text>
-  <text v-else-if="version.version === currentVersion" class="version-tag tag-current">当前</text>
 </text>
 <text class="version-date">
   {{version.releaseDate || formatDate(version.date)}}
