@@ -185,10 +185,10 @@
     flex: 1;
     min-height: 100px;
     max-height: 200px;
-    color: #ffffff !important; /* 强制白色 */
+    color: #ffffff;
     font-size: 14px;
     line-height: 20px;
-    text-align: left; /* 改为左对齐 */
+    text-align: left;
     word-wrap: break-word;
     overflow-wrap: break-word;
     padding: 10px;
@@ -245,10 +245,11 @@
     text-align: center;
     border-radius: 8px;
     background-color: #222222;
-    color: #ffffff !important; /* 确保文字可见 */
+    color: #ffffff !important;
     font-size: 12px;
     border: 1px solid #333333;
     transition: all 0.2s ease;
+    text-decoration: none !important;
 }
 
 .mirror-slider-item:active {
@@ -317,36 +318,40 @@
     margin-top: 5px;
 }
 
+/* 操作按钮 - 修复文字颜色问题 */
 .operation-btn {
     min-width: 100px;
     height: 40px;
     font-size: 14px;
+    font-weight: bold;
     line-height: 40px;
     text-align: center;
     border-radius: 8px;
     padding: 0 16px;
-    background-color: #007acc !important; /* 固定背景色 */
-    color: #ffffff !important; /* 固定文字颜色 */
-    border: 1px solid #007acc !important;
+    color: #ffffff !important;
+    border: 1px solid transparent;
     transition: all 0.2s ease;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); /* 更明显的阴影 */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     position: relative;
-    z-index: 10; /* 提高层级 */
+    z-index: 10;
+    text-decoration: none !important;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
 }
 
 .operation-btn:active {
-    background-color: #006bb3 !important;
     transform: translateY(1px);
+    opacity: 0.9;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.operation-btn-primary {
+    background-color: #007acc !important;
+    border-color: #007acc !important;
 }
 
 .operation-btn-success {
     background-color: #28a745 !important;
     border-color: #28a745 !important;
-}
-
-.operation-btn-success:active {
-    background-color: #218838 !important;
 }
 
 .operation-btn-danger {
@@ -360,9 +365,10 @@
 }
 
 .operation-btn-disabled {
-    opacity: 0.5 !important;
-    background-color: #333333 !important;
-    border-color: #444444 !important;
+    background-color: #444444 !important;
+    color: #cccccc !important;
+    border-color: #555555 !important;
+    opacity: 0.7;
 }
 
 /* 使用说明卡片 */
@@ -462,23 +468,24 @@
     transition: width 0.3s ease;
 }
 
-/* 按钮样式 - 修复显示问题 */
+/* 主要按钮样式 - 修复文字颜色问题 */
 .btn {
     min-width: 100px;
     height: 40px;
+    font-size: 14px;
+    font-weight: bold;
     line-height: 40px;
     text-align: center;
     border-radius: 8px;
     padding: 0 16px;
-    font-size: 14px;
-    font-weight: bold;
-    transition: all 0.2s ease;
+    color: #ffffff !important;
     border: 1px solid transparent;
+    transition: all 0.2s ease;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
     position: relative;
     z-index: 10;
-    color: #ffffff !important; /* 强制白色文字 */
-    text-decoration: none;
+    text-decoration: none !important;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
 }
 
 .btn:active {
@@ -489,34 +496,30 @@
 
 .btn-primary {
     background-color: #007acc !important;
-    color: #ffffff !important;
     border-color: #007acc !important;
 }
 
 .btn-success {
     background-color: #28a745 !important;
-    color: #ffffff !important;
     border-color: #28a745 !important;
 }
 
 .btn-danger {
     background-color: #dc3545 !important;
-    color: #ffffff !important;
     border-color: #dc3545 !important;
 }
 
 .btn-disabled {
-    background-color: #333333 !important;
-    color: #888888 !important;
-    border-color: #444444 !important;
+    background-color: #444444 !important;
+    color: #cccccc !important;
+    border-color: #555555 !important;
     opacity: 0.7;
 }
 
-/* 修复所有按钮的显示问题 */
+/* 修复所有按钮的文字颜色 - 强制为白色 */
 .btn, .operation-btn, .mirror-slider-item {
-    opacity: 1 !important;
-    visibility: visible !important;
-    display: inline-block !important;
+    color: #ffffff !important;
+    text-decoration: none !important;
 }
 
 /* 图片图标样式 */
