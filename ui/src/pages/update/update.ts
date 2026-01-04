@@ -29,7 +29,7 @@ const GITHUB_REPO = 'miniapp';
 // 当前版本号（每次发布需要更新）- 已自动更新为1.2.10.5
 const CURRENT_VERSION = '1.2.10.5';
 // 设备型号（根据设备设置）- 已通过构建脚本设置
-const DEVICE_MODEL = process.env.DEVICE || 'a6p'; // 例如: a6p, a6x, a5, c7 等
+const DEVICE_MODEL = 'a6p'; // 例如: a6p, a6x, a5, c7 等
 
 // 镜像源配置 - 添加buttonName字段显示简短名称
 const MIRRORS = [
@@ -122,10 +122,10 @@ interface DownloadedVersion {
 const update = defineComponent({
     data() {
         return {
-            $page: {} as any,
+            $page: {},
             
             // 状态
-            status: 'idle' as 'idle' | 'checking' | 'available' | 'downloading' | 'installing' | 'updated' | 'error',
+            status: 'idle',
             errorMessage: '',
             
             // 版本信息
@@ -146,21 +146,21 @@ const update = defineComponent({
             
             // 镜像源设置
             mirrors: MIRRORS,
-            selectedMirror: 'langningchen', // 默认使用ghproxy镜像
-            useMirror: true, // 是否使用镜像
+            selectedMirror: 'langningchen',
+            useMirror: true,
             currentMirror: MIRRORS.find(m => m.id === 'langningchen') || MIRRORS[0],
             
             // 历史版本列表
-            historyVersions: [] as ReleaseVersion[],
+            historyVersions: [],
             
             // 当前下载的历史版本
-            downloadingHistoryVersion: null as string | null,
+            downloadingHistoryVersion: null,
             
             // 已下载历史版本缓存
-            downloadedVersions: [] as DownloadedVersion[],
+            downloadedVersions: [],
             
             // 展开的版本列表
-            expandedVersions: [] as string[],
+            expandedVersions: [],
         };
     },
 
@@ -232,7 +232,7 @@ const update = defineComponent({
         },
 
         // 获取所有版本（包含最新版和历史版）
-        allVersions(): ReleaseVersion[] {
+        allVersions() {
             const all = [...this.historyVersions];
             // 确保最新版本在前
             if (this.latestVersion) {
@@ -251,19 +251,13 @@ const update = defineComponent({
         async initializeShell() {
             try {
                 if (!Shell || typeof Shell.initialize !== 'function') {
-                    // 尝试从全局对象获取Shell
-                    const globalShell = (window as any).Shell;
-                    if (globalShell && typeof globalShell.initialize === 'function') {
-                        Object.assign(Shell, globalShell);
-                    } else {
-                        throw new Error('Shell模块不可用');
-                    }
+                    throw new Error('Shell模块不可用');
                 }
                 
                 await Shell.initialize();
                 this.shellInitialized = true;
                 console.log(`设备型号: ${this.deviceModel}`);
-            } catch (error: any) {
+            } catch (error) {
                 console.error('Shell初始化失败:', error);
                 this.shellInitialized = false;
             }
@@ -335,7 +329,7 @@ const update = defineComponent({
                 }
                 
                 // 解析JSON
-                let releases: any[];
+                let releases;
                 try {
                     releases = JSON.parse(result);
                     console.log('GitHub API响应，版本数量:', releases.length);
@@ -349,7 +343,7 @@ const update = defineComponent({
                 }
                 
                 // 处理每个版本（最多10个）
-                const processedVersions: ReleaseVersion[] = [];
+                const processedVersions = [];
                 for (const release of releases.slice(0, 10)) {
                     if (release.tag_name) {
                         // 获取版本号（移除可能的v前缀）
@@ -399,7 +393,7 @@ const update = defineComponent({
                             }
                             
                             if (matchedAsset) {
-                                const versionInfo: ReleaseVersion = {
+                                const versionInfo = {
                                     version: tagVersion,
                                     date: release.created_at || release.published_at || '',
                                     notes: release.body || '暂无更新说明',
@@ -447,7 +441,7 @@ const update = defineComponent({
                 // 加载已下载的历史版本缓存
                 await this.loadDownloadedVersions();
                 
-            } catch (error: any) {
+            } catch (error) {
                 console.error('检查更新失败:', error);
                 this.status = 'error';
                 this.errorMessage = error.message || '网络连接失败';
@@ -458,7 +452,7 @@ const update = defineComponent({
         },
 
         // 比较版本号
-        compareVersions(v1: string, v2: string): number {
+        compareVersions(v1, v2) {
             // 移除v前缀
             const version1 = v1.replace(/^v/, '').split('.').map(Number);
             const version2 = v2.replace(/^v/, '').split('.').map(Number);
@@ -539,7 +533,7 @@ const update = defineComponent({
                     throw new Error('文件下载失败');
                 }
                 
-            } catch (error: any) {
+            } catch (error) {
                 console.error('下载失败:', error);
                 this.status = 'error';
                 this.errorMessage = error.message || '下载失败';
@@ -591,7 +585,7 @@ const update = defineComponent({
                     }
                 }, 3000);
                 
-            } catch (error: any) {
+            } catch (error) {
                 console.error('安装失败:', error);
                 this.status = 'error';
                 this.errorMessage = error.message || '安装失败';
@@ -605,7 +599,7 @@ const update = defineComponent({
         },
 
         // 下载历史版本
-        async downloadHistoryVersion(version: ReleaseVersion) {
+        async downloadHistoryVersion(version) {
             if (!this.shellInitialized || !Shell) {
                 showError('Shell模块未初始化');
                 return;
@@ -650,7 +644,7 @@ const update = defineComponent({
                     
                     if (fileSize > 0) {
                         // 保存下载记录
-                        const downloadRecord: DownloadedVersion = {
+                        const downloadRecord = {
                             version: version.version,
                             downloadTime: new Date().toISOString(),
                             filePath: downloadPath,
@@ -675,7 +669,7 @@ const update = defineComponent({
                     throw new Error('文件下载失败');
                 }
                 
-            } catch (error: any) {
+            } catch (error) {
                 console.error('下载历史版本失败:', error);
                 showError(`下载历史版本失败: ${error.message || '未知错误'}`);
                 
@@ -690,7 +684,7 @@ const update = defineComponent({
         },
 
         // 安装历史版本
-        async installHistoryVersion(filePath: string, version: string) {
+        async installHistoryVersion(filePath, version) {
             if (!this.shellInitialized || !Shell) {
                 showError('无法安装');
                 return;
@@ -709,7 +703,7 @@ const update = defineComponent({
                 // 清理其他历史版本文件
                 await this.cleanupOldHistoryFiles();
                 
-            } catch (error: any) {
+            } catch (error) {
                 console.error('安装历史版本失败:', error);
                 showError(`安装失败: ${error.message || '未知错误'}`);
             } finally {
@@ -787,7 +781,7 @@ const update = defineComponent({
         },
 
         // 选择镜像源
-        selectMirror(mirrorId: string) {
+        selectMirror(mirrorId) {
             const mirror = this.mirrors.find(m => m.id === mirrorId);
             if (mirror) {
                 this.selectedMirror = mirrorId;
@@ -814,7 +808,7 @@ const update = defineComponent({
         },
 
         // 格式化日期
-        formatDate(dateString: string): string {
+        formatDate(dateString) {
             try {
                 const date = new Date(dateString);
                 return date.toLocaleDateString('zh-CN');
@@ -824,7 +818,7 @@ const update = defineComponent({
         },
 
         // 格式化文件大小
-        formatFileSize(bytes: number): string {
+        formatFileSize(bytes) {
             if (bytes < 1024) return `${bytes} B`;
             if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
             if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -832,7 +826,7 @@ const update = defineComponent({
         },
 
         // 切换版本详情显示
-        toggleVersionDetails(version: string) {
+        toggleVersionDetails(version) {
             const index = this.expandedVersions.indexOf(version);
             if (index > -1) {
                 this.expandedVersions.splice(index, 1);
@@ -842,17 +836,17 @@ const update = defineComponent({
         },
 
         // 显示文件路径
-        showFilePath(filePath: string) {
+        showFilePath(filePath) {
             showInfo(`文件路径: ${filePath}\n\n安装命令:\nminiapp_cli install "${filePath}"`);
         },
 
         // 获取已下载的版本
-        getDownloadedVersion(version: string): DownloadedVersion | undefined {
+        getDownloadedVersion(version) {
             return this.downloadedVersions.find(v => v.version === version);
         },
 
         // 显示安装路径
-        showInstallPath(version: string) {
+        showInstallPath(version) {
             const downloaded = this.getDownloadedVersion(version);
             if (downloaded) {
                 this.showFilePath(downloaded.filePath);
