@@ -1,48 +1,107 @@
+/* update.less - 美化版更新页面样式 */
 @import url('../../styles/section.less');
 
-.update-status {
-    flex: 1;
-    height: 24px;
-    line-height: 24px;
-    font-size: 16px;
-    padding: 0 8px;
-    border-radius: 3px;
-    text-align: center;
+/* 状态显示卡片 */
+.update-status-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 15px;
+    background-color: #111111;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border: 1px solid #333333;
 }
 
+.update-status-container {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.status-text-container {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.status-label {
+    font-size: 14px;
+    color: #888888;
+}
+
+.status-text {
+    font-size: 16px;
+    font-weight: bold;
+}
+
+/* 状态颜色 */
 .status-checking {
     color: #17a2b8;
-    background-color: #0e3d4a;
 }
 
 .status-updated {
     color: #28a745;
-    background-color: #1a4a2e;
 }
 
 .status-available {
     color: #ffc107;
-    background-color: #4a3e1a;
 }
 
 .status-error {
     color: #dc3545;
-    background-color: #4a1e1e;
 }
 
-.version-info {
+/* 设备信息卡片 */
+.device-info-card {
+    display: flex;
     flex-direction: column;
-    gap: 5px;
-    padding: 10px;
+    gap: 8px;
+    padding: 15px;
     background-color: #111111;
-    border-radius: 3px;
+    border-radius: 5px;
     margin-bottom: 10px;
+    border: 1px solid #333333;
+}
+
+.device-info-title {
+    font-size: 16px;
+    color: #ffc107;
+    margin-bottom: 3px;
+}
+
+.device-info-content {
+    font-size: 14px;
+    color: #007acc;
+    line-height: 22px;
+    white-space: pre-line;
+}
+
+/* 版本信息卡片 */
+.version-info-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 15px;
+    background-color: #111111;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border: 1px solid #333333;
 }
 
 .version-line {
+    display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 5px;
+    gap: 8px;
+    padding: 8px 0;
+    border-bottom: 1px solid #222222;
+}
+
+.version-line:last-child {
+    border-bottom: none;
 }
 
 .version-label {
@@ -66,133 +125,118 @@
     color: #ffc107;
 }
 
-.release-notes {
+.file-size {
+    font-size: 14px;
+    color: #17a2b8;
+}
+
+/* 更新说明卡片 */
+.release-notes-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 15px;
+    background-color: #111111;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border: 1px solid #333333;
+}
+
+.release-notes-title {
+    font-size: 16px;
+    color: #00ff00;
+    margin-bottom: 5px;
+}
+
+.release-notes-content {
     flex: 1;
     min-height: 100px;
     max-height: 200px;
-    background-color: #111111;
-    color: #ffffff;
-    border: 1px solid #333333;
-    border-radius: 3px;
-    padding: 10px;
+    color: #cccccc;
     font-size: 14px;
     line-height: 20px;
-    margin-bottom: 10px;
+    text-align: justify;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    padding: 10px;
+    background-color: #0a0a0a;
+    border-radius: 3px;
+    border: 1px solid #222222;
 }
 
-.file-info {
-    font-size: 14px;
-    color: #888888;
-    margin-bottom: 10px;
-}
-
-.operations-grid {
+/* 镜像源设置卡片 */
+.mirror-settings-card {
     display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 10px;
-}
-
-.operation-btn {
-    min-width: 70px;
-    height: 24px;
-    font-size: 14px;
-    line-height: 24px;
-    text-align: center;
-    border-radius: 3px;
-    padding: 0 8px;
-    background-color: #333333;
-    color: #ffffff;
-}
-
-.operation-btn-primary {
-    background-color: #007acc;
-}
-
-.operation-btn-success {
-    background-color: #28a745;
-}
-
-.operation-btn-danger {
-    background-color: #dc3545;
-}
-
-.operation-btn-info {
-    background-color: #17a2b8;
-}
-
-.operation-btn-warning {
-    background-color: #ffc107;
-}
-
-/* 镜像源相关样式 */
-.mirror-settings {
     flex-direction: column;
-    gap: 8px;
-    padding: 8px;
+    gap: 12px;
+    padding: 15px;
     background-color: #111111;
-    border-radius: 3px;
+    border-radius: 5px;
     margin-bottom: 10px;
+    border: 1px solid #333333;
 }
 
 .mirror-slider-container {
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
 }
 
 .mirror-slider-label {
     font-size: 14px;
     color: #888888;
-    min-width: 60px;
 }
 
 .mirror-slider-scroller {
-    flex: 1;
-    height: 40px;
-    background-color: #222222;
+    height: 50px;
+    background-color: #0a0a0a;
     border-radius: 5px;
-    border: 1px solid #333333;
-    padding: 0 5px;
+    border: 1px solid #222222;
+    padding: 5px;
 }
 
 .mirror-slider-content {
+    display: flex;
     flex-direction: row;
     align-items: center;
-    gap: 5px;
+    gap: 8px;
     padding: 5px 0;
 }
 
 .mirror-slider-item {
     flex-shrink: 0;
-    width: 80px;
-    height: 30px;
-    line-height: 30px;
+    width: 90px;
+    height: 36px;
+    line-height: 36px;
     text-align: center;
     border-radius: 4px;
-    background-color: #333333;
+    background-color: #222222;
     color: #888888;
     font-size: 12px;
-    margin-right: 5px;
-    border: 1px solid #444444;
+    border: 1px solid #333333;
+    transition: all 0.2s ease;
+}
+
+.mirror-slider-item:active {
+    background-color: #2a2a2a;
 }
 
 .mirror-slider-item-selected {
     background-color: #007acc;
     color: #ffffff;
     border-color: #007acc;
+    font-weight: bold;
 }
 
 .mirror-status-info {
+    display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    margin-top: 5px;
-    padding: 5px;
-    background-color: #1a1a1a;
+    padding: 8px;
+    background-color: #0a0a0a;
     border-radius: 3px;
+    border: 1px solid #222222;
 }
 
 .mirror-current {
@@ -202,171 +246,209 @@
 
 .mirror-status {
     font-size: 11px;
-    padding: 2px 5px;
-    border-radius: 2px;
+    padding: 4px 8px;
+    border-radius: 3px;
     text-align: center;
 }
 
 .mirror-status-active {
     color: #28a745;
-    background-color: #1a4a2e;
+    background-color: rgba(40, 167, 69, 0.1);
+    border: 1px solid #28a745;
 }
 
 .mirror-status-disabled {
     color: #888888;
     background-color: #222222;
+    border: 1px solid #333333;
 }
 
-/* 历史版本相关样式 */
-.history-list {
-    flex: 1;
+/* 操作按钮卡片 */
+.operations-card {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 15px;
     background-color: #111111;
-    border-radius: 3px;
-    padding: 8px;
+    border-radius: 5px;
     margin-bottom: 10px;
     border: 1px solid #333333;
 }
 
-.history-item {
-    margin-bottom: 8px;
+.operations-grid {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 5px;
 }
 
-.history-header {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px;
-    background-color: #1a1a1a;
-    border-radius: 3px;
+.operation-btn {
+    min-width: 90px;
+    height: 36px;
+    font-size: 14px;
+    line-height: 36px;
+    text-align: center;
+    border-radius: 5px;
+    padding: 0 12px;
+    background-color: #222222;
+    color: #ffffff;
+    border: 1px solid #333333;
+    transition: all 0.2s ease;
+}
+
+.operation-btn:active {
+    background-color: #2a2a2a;
+    transform: translateY(1px);
+}
+
+.operation-btn-primary {
+    background-color: #007acc;
+    border-color: #007acc;
+}
+
+.operation-btn-success {
+    background-color: #28a745;
+    border-color: #28a745;
+}
+
+.operation-btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.operation-btn-info {
+    background-color: #17a2b8;
+    border-color: #17a2b8;
+}
+
+.operation-btn-disabled {
+    opacity: 0.5;
+    background-color: #333333;
+    border-color: #444444;
+}
+
+/* 使用说明卡片 */
+.instructions-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 15px;
+    background-color: #111111;
+    border-radius: 5px;
+    margin-bottom: 10px;
     border: 1px solid #333333;
 }
 
-.history-version-info {
-    flex-direction: column;
-    gap: 4px;
-    flex: 1;
+.instructions-title {
+    font-size: 16px;
+    color: #00ff00;
+    margin-bottom: 5px;
 }
 
-.version-date {
-    font-size: 11px;
-    color: #666666;
-}
-
-.history-download-btn {
-    min-width: 60px;
-    height: 28px;
-    line-height: 28px;
-    text-align: center;
+.instructions-content {
+    font-size: 14px;
+    color: #cccccc;
+    line-height: 22px;
+    text-align: justify;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    padding: 10px;
+    background-color: #0a0a0a;
     border-radius: 3px;
+    border: 1px solid #222222;
+}
+
+/* 错误信息卡片 */
+.error-card {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 15px;
+    background-color: #1a0a0a;
+    border-radius: 5px;
+    margin-bottom: 10px;
+    border: 1px solid #dc3545;
+}
+
+.error-title {
+    font-size: 16px;
+    color: #dc3545;
+    margin-bottom: 3px;
+}
+
+.error-content {
+    font-size: 14px;
+    color: #ff6b6b;
+    line-height: 20px;
+}
+
+/* 按钮样式 */
+.btn {
+    min-width: 100px;
+    height: 40px;
+    line-height: 40px;
+    text-align: center;
+    border-radius: 5px;
+    padding: 0 16px;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.btn:active {
+    transform: translateY(1px);
+    opacity: 0.9;
+}
+
+.btn-primary {
     background-color: #007acc;
     color: #ffffff;
-    font-size: 13px;
-    padding: 0 10px;
+    border-color: #007acc;
 }
 
-.history-download-btn:active {
-    opacity: 0.8;
+.btn-success {
+    background-color: #28a745;
+    color: #ffffff;
+    border-color: #28a745;
 }
 
-.history-details {
-    padding: 12px;
-    background-color: #222222;
-    border-radius: 0 0 3px 3px;
-    margin-top: -3px;
-    border: 1px solid #333333;
-    border-top: none;
+.btn-danger {
+    background-color: #dc3545;
+    color: #ffffff;
+    border-color: #dc3545;
 }
 
-.history-actions {
-    flex-direction: row;
-    gap: 6px;
-    margin-top: 10px;
-    justify-content: flex-start;
-}
-
-.history-divider {
-    height: 1px;
+.btn-disabled {
     background-color: #333333;
-    margin: 8px 0;
+    color: #888888;
+    border-color: #444444;
+    opacity: 0.7;
 }
 
-.downloaded-item {
-    background-color: #111111;
-    border-radius: 3px;
-    padding: 10px;
-    margin-bottom: 8px;
-    border: 1px solid #333333;
+/* 图片图标样式 */
+.image-icon {
+    width: 20px;
+    height: 20px;
 }
 
-.downloaded-item-header {
+/* 链接项目样式 */
+.link-item {
+    display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
+    gap: 10px;
+    padding: 12px;
+    border-bottom: 1px solid #333333;
 }
 
-.downloaded-version-label {
+.link-item:active {
+    background-color: #222222;
+}
+
+.link-text {
     font-size: 14px;
-    color: #ffffff;
-    font-weight: bold;
-}
-
-.downloaded-time {
-    font-size: 11px;
-    color: #888888;
-}
-
-/* 按钮状态 */
-.btn-disabled {
-    opacity: 0.5;
-    background-color: #666666 !important;
-}
-
-.btn-disabled:active {
-    opacity: 0.5 !important;
-}
-
-/* 版本标签样式 */
-.version-tag {
-    display: inline-block;
-    padding: 1px 6px;
-    border-radius: 10px;
-    font-size: 10px;
-    margin-left: 6px;
-    vertical-align: middle;
-}
-
-.tag-latest {
-    background-color: #28a745;
-    color: white;
-}
-
-.tag-current {
-    background-color: #ffc107;
-    color: black;
-}
-
-.tag-old {
-    background-color: #6c757d;
-    color: white;
-}
-
-/* 历史版本操作按钮 */
-.history-action-btn {
-    min-width: 80px;
-    height: 26px;
-    line-height: 26px;
-    text-align: center;
-    border-radius: 3px;
-    font-size: 12px;
-    padding: 0 8px;
-}
-
-/* 历史版本列表滚动区域 */
-.history-scroll-area {
-    max-height: 400px;
-    background-color: #111111;
-    border-radius: 3px;
-    border: 1px solid #333333;
-    padding: 5px;
+    color: #cccccc;
+    flex: 1;
 }
