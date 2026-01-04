@@ -24,7 +24,7 @@ export type UpdateOptions = {};
 
 // GitHub配置
 const GITHUB_OWNER = 'penosext';
-const GITHUB_REPO = 'miniapp_dev';
+const GITHUB_REPO = 'miniapp';
 
 // 当前版本号（每次发布需要更新）
 const CURRENT_VERSION = '1.2.4';
@@ -132,6 +132,13 @@ const update = defineComponent({
             // 设备匹配状态
             deviceMatched: true,
             otherDeviceModels: [] as string[],
+            
+            // 下载进度信息
+            downloadedSize: 0,
+            downloadProgress: 0,
+            downloadProgressText: '',
+            downloadTimer: null as any,
+            downloadProcessPid: 0,
         };
     },
 
@@ -172,6 +179,15 @@ const update = defineComponent({
 
         formattedFileSize(): string {
             const size = this.fileSize;
+            if (size < 1024) return `${size} B`;
+            if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+            if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+            return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
+        },
+
+        // 格式化的下载进度文本
+        formattedDownloadedSize(): string {
+            const size = this.downloadedSize;
             if (size < 1024) return `${size} B`;
             if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
             if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
@@ -415,6 +431,44 @@ const update = defineComponent({
             return 0;
         },
 
+        // 更新下载进度
+        async updateDownloadProgress() {
+            if (!this.downloadPath || !Shell) return;
+            
+            try {
+                // 检查文件是否存在并获取大小
+                const checkCmd = `test -f "${this.downloadPath}" && wc -c < "${this.downloadPath}" || echo 0`;
+                const sizeResult = await Shell.exec(checkCmd);
+                const currentSize = parseInt(sizeResult.trim()) || 0;
+                
+                this.downloadedSize = currentSize;
+                
+                if (this.fileSize > 0) {
+                    this.downloadProgress = Math.min(100, Math.round((currentSize / this.fileSize) * 100));
+                    this.downloadProgressText = `${this.formattedDownloadedSize}/${this.formattedFileSize} (${this.downloadProgress}%)`;
+                } else {
+                    this.downloadProgressText = `${this.formattedDownloadedSize}`;
+                }
+                
+                console.log(`下载进度: ${this.downloadProgressText}`);
+                
+            } catch (error) {
+                console.warn('获取下载进度失败:', error);
+            }
+        },
+
+        // 清理下载进度监控
+        clearDownloadProgress() {
+            if (this.downloadTimer) {
+                clearInterval(this.downloadTimer);
+                this.downloadTimer = null;
+            }
+            this.downloadProcessPid = 0;
+            this.downloadedSize = 0;
+            this.downloadProgress = 0;
+            this.downloadProgressText = '';
+        },
+
         // 下载更新
         async downloadUpdate() {
             if (!this.shellInitialized || !Shell) {
@@ -437,6 +491,7 @@ const update = defineComponent({
             }
             
             this.status = 'downloading';
+            this.clearDownloadProgress(); // 清理之前的进度
             
             try {
                 showLoading(`正在下载 ${this.deviceModel} 型号的更新...`);
@@ -462,22 +517,79 @@ const update = defineComponent({
                 console.log('设备型号:', this.deviceModel);
                 console.log('目标版本:', this.latestVersion);
                 console.log('使用镜像:', this.useMirror ? this.currentMirror.name : '无');
+                console.log('文件总大小:', this.fileSize, 'bytes');
                 
-                // 使用curl下载文件
-                const downloadCmd = `curl -k -L "${finalDownloadUrl}" -o "${this.downloadPath}"`;
+                // 启动进度监控（每秒更新一次）
+                this.downloadTimer = setInterval(async () => {
+                    await this.updateDownloadProgress();
+                }, 1000);
+                
+                // 使用curl下载文件（后台执行并获取PID）
+                const downloadCmd = `curl -k -L "${finalDownloadUrl}" -o "${this.downloadPath}" & echo $!`;
                 console.log('执行命令:', downloadCmd);
                 
-                await Shell.exec(downloadCmd);
+                // 获取进程ID
+                const pidResult = await Shell.exec(downloadCmd);
+                this.downloadProcessPid = parseInt(pidResult.trim()) || 0;
+                
+                if (this.downloadProcessPid > 0) {
+                    console.log(`下载进程PID: ${this.downloadProcessPid}`);
+                    
+                    // 等待下载完成
+                    let downloadComplete = false;
+                    let retryCount = 0;
+                    const maxRetries = 600; // 最多等待10分钟（600秒）
+                    
+                    while (!downloadComplete && retryCount < maxRetries) {
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        
+                        try {
+                            // 检查进程是否还在运行
+                            const checkPidCmd = `ps -p ${this.downloadProcessPid} > /dev/null 2>&1 && echo "running" || echo "stopped"`;
+                            const pidStatus = await Shell.exec(checkPidCmd);
+                            
+                            if (pidStatus.trim() === 'stopped') {
+                                downloadComplete = true;
+                                console.log('下载进程已结束');
+                            }
+                            
+                            // 同时更新进度
+                            await this.updateDownloadProgress();
+                            
+                        } catch (error) {
+                            console.warn('检查下载进程状态失败:', error);
+                        }
+                        
+                        retryCount++;
+                    }
+                    
+                    if (!downloadComplete) {
+                        console.warn('下载可能超时');
+                        // 强制结束进程
+                        try {
+                            await Shell.exec(`kill -9 ${this.downloadProcessPid} 2>/dev/null || true`);
+                        } catch (e) {
+                            console.warn('结束下载进程失败:', e);
+                        }
+                    }
+                } else {
+                    // 如果没有获取到PID，直接执行命令
+                    await Shell.exec(`curl -k -L "${finalDownloadUrl}" -o "${this.downloadPath}"`);
+                    await this.updateDownloadProgress();
+                }
+                
+                // 清理进度监控
+                this.clearDownloadProgress();
                 
                 // 检查文件是否下载成功
                 const checkCmd = `test -f "${this.downloadPath}" && echo "exists"`;
                 const checkResult = await Shell.exec(checkCmd);
                 
                 if (checkResult.trim() === 'exists') {
-                    // 获取文件大小
+                    // 获取最终文件大小
                     const sizeCmd = `wc -c < "${this.downloadPath}"`;
                     const fileSize = parseInt(await Shell.exec(sizeCmd)) || 0;
-                    console.log(`文件下载成功，大小: ${fileSize} 字节`);
+                    console.log(`文件下载成功，最终大小: ${fileSize} 字节`);
                     
                     if (fileSize > 0) {
                         showSuccess(`${this.deviceModel} 型号的更新下载完成，开始安装`);
@@ -494,6 +606,9 @@ const update = defineComponent({
                 this.status = 'error';
                 this.errorMessage = error.message || '下载失败';
                 showError(`下载失败: ${this.errorMessage}`);
+                
+                // 清理进度监控
+                this.clearDownloadProgress();
                 
                 // 提供手动安装说明
                 if (this.downloadUrl) {
@@ -531,6 +646,8 @@ const update = defineComponent({
                 
                 const result = await Shell.exec(installCmd);
                 console.log('安装结果:', result);
+                
+                // 清理旧的临时文件
                 await Shell.exec('rm -f /userdisk/miniapp_*_v*_*.amr 2>/dev/null || true');
                 await Shell.exec('rm -f /userdisk/miniapp_update_*.amr 2>/dev/null || true');
                 
