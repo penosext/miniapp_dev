@@ -19,65 +19,50 @@
 
 <template>
     <div class="container">
-        <div class="content-wrapper">
-            <!-- 消息区域 -->
-            <scroller ref="messageScroller" class="messages-scroller" scroll-direction="vertical"
-                :show-scrollbar="true">
-                <div v-for="message in displayMessages" :key="message.id" class="message-container">
-                    <text :class="'message message-' + message.role">{{ message.content || '...' }}</text>
-                    <text v-if="![0, 1, 6].includes(message.stopReason)" class="stop-reason-warning">{{
-                        getStopReasonText(message.stopReason) }}</text>
-                    <div v-if="message.role === 0 || message.role === 1"
-                        :class="message.role === 0 ? 'message-actions-user' : 'message-actions'">
-                        <text v-if="message.role === 0" @click="editUserMessage(message.id)"
-                            :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">编</text>
-                        <text v-if="message.role === 1" @click="regenerateMessage(message.id)"
-                            :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">重</text>
-                        <text @click="switchVariant(message.id, -1)"
-                            :class="'square-btn' + ((canGoVariant(message.id, -1) && !isStreaming) ? '' : ' square-btn-disabled')">左</text>
-                        <text class="action-text">{{ getVariantInfo(message.id) }}</text>
-                        <text @click="switchVariant(message.id, 1)"
-                            :class="'square-btn' + ((canGoVariant(message.id, 1) && !isStreaming) ? '' : ' square-btn-disabled')">右</text>
+        <div style="flex: 1; display: flex; flex-direction: column;">
+            <div style="flex: 1; display: flex; flex-direction: row;">
+                <!-- 消息区域 -->
+                <scroller ref="messageScroller" class="messages-scroller" scroll-direction="vertical"
+                    :show-scrollbar="true">
+                    <div v-for="message in displayMessages" :key="message.id">
+                        <text :class="'message message-' + message.role">{{ message.content }}</text>
+                        <text v-if="![0, 1, 6].includes(message.stopReason)" class="stop-reason-warning">{{
+                            getStopReasonText(message.stopReason) }}</text>
+                        <div v-if="message.role === 0 || message.role === 1"
+                            :class="message.role === 0 ? 'message-actions-user' : 'message-actions'">
+                            <text v-if="message.role === 0" @click="editUserMessage(message.id)"
+                                :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">编</text>
+                            <text v-if="message.role === 1" @click="regenerateMessage(message.id)"
+                                :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">重</text>
+                            <text @click="switchVariant(message.id, -1, message.role === 1)"
+                                :class="'square-btn' + ((canGoVariant(message.id, -1) && !isStreaming) ? '' : ' square-btn-disabled')">左</text>
+                            <text class="action-text">{{ getVariantInfo(message.id) }}</text>
+                            <text @click="switchVariant(message.id, 1, message.role === 1)"
+                                :class="'square-btn' + ((canGoVariant(message.id, 1) && !isStreaming) ? '' : ' square-btn-disabled')">右</text>
+                        </div>
                     </div>
-                </div>
-            </scroller>
+                </scroller>
 
-            <!-- 侧边栏 - 可滚动 -->
-            <div class="sidebar-container">
-                <scroller class="sidebar-scroller" scroll-direction="vertical" :show-scrollbar="true">
+                <!-- 侧边按钮 -->
+                <div class="side-buttons">
                     <text @click="openHistory"
                         :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">历</text>
                     <text @click="openMessageNavigation"
                         :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">导</text>
                     <text @click="openSettings"
                         :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">设</text>
-                    <!-- 分割线 -->
-                    <div class="divider"></div>
-                    <!-- 清除对话按钮 -->
-                    <text v-if="messages.length > 0" @click="clearConversation"
-                        :class="'square-btn extra-side-button' + (isStreaming ? ' square-btn-disabled' : '')">清</text>
-                </scroller>
+                </div>
+            </div>
+
+            <!-- 输入区域 -->
+            <div class="item">
+                <text :class="'item-input' + (isStreaming ? ' item-input-disabled' : '')" @click="loadSoftKeyboard">{{
+                    currentInput || '点击输入...' }}</text>
+                <text v-if="!isStreaming" @click="sendMessage(this.currentInput)"
+                    :class="'square-btn square-btn-' + (this.canSendMessage ? 'primary' : 'disabled')">发</text>
+                <text v-else @click="stopGeneration" class="square-btn square-btn-danger">停</text>
             </div>
         </div>
-
-        <!-- 输入区域 -->
-        <div class="input-area">
-            <text :class="'input-field' + (isStreaming ? ' input-field-disabled' : '')" 
-                  @click="loadSoftKeyboard">
-                {{ currentInput || '点击输入...' }}
-            </text>
-            <text v-if="!isStreaming" 
-                  @click="sendMessage(currentInput)"
-                  :class="'send-button' + (canSendMessage ? '' : ' send-button-disabled')">
-                发
-            </text>
-            <text v-else 
-                  @click="stopGeneration" 
-                  class="stop-button">
-                停
-            </text>
-        </div>
-        
         <ToastMessage />
     </div>
 </template>

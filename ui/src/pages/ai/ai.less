@@ -1,71 +1,30 @@
-/* ai.less - 扁平化紧凑主题样式 */
+/* ai.less - 基于原始样式，按钮尺寸增加30%，扁平化主题 */
 @import url('../../styles/section.less');
 
-/* 主容器 - 紧凑布局 */
-.container {
-    background-color: #121212;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
-}
-
-/* 内容包装器 */
-.content-wrapper {
-    flex: 1;
-    display: flex;
-    flex-direction: row;
-    min-height: 0;
-    padding: 4px 4px 0 4px;
-    gap: 4px;
-}
-
-/* 消息滚动区域 - 紧凑版 */
-.messages-scroller {
-    flex: 1;
-    padding: 8px 6px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    background-color: #121212;
-    border-radius: 4px;
-    min-height: 0;
-}
-
-/* 侧边栏容器 - 可滚动 */
-.sidebar-container {
-    width: 46px;
-    display: flex;
-    flex-direction: column;
+/* 侧边按钮 */
+.side-buttons {
     background-color: #111111;
-    border-radius: 4px;
-    border-left: 1px solid #333333;
-}
-
-/* 侧边栏滚动区域 */
-.sidebar-scroller {
-    flex: 1;
     display: flex;
     flex-direction: column;
-    padding: 6px 4px;
-    gap: 6px;
-    overflow-y: auto;
-    min-height: 0;
+    align-items: center;
+    padding-top: 6px; /* 5px * 1.3 = 6.5px，取整6px */
+    padding-bottom: 6px;
+    gap: 6px; /* 5px * 1.3 = 6.5px，取整6px */
 }
 
-/* 方形按钮 - 略微增大 */
+/* 方形按钮 - 尺寸增加30% (原28px -> 36px) */
 .square-btn {
-    width: 36px;
+    width: 36px; /* 28px * 1.3 = 36.4px，取整36px */
     height: 36px;
     background-color: #333333;
     color: #ffffff;
     text-align: center;
-    font-size: 14px;
+    font-size: 21px; /* 16px * 1.3 = 20.8px，取整21px */
     line-height: 36px;
-    border-radius: 3px;
-    border: none;
-    margin: 1px 0;
+    border-radius: 4px; /* 3px * 1.3 = 3.9px，取整4px */
+    border: none; /* 扁平化设计 */
+    box-shadow: none; /* 扁平化设计 */
+    transition: background-color 0.2s;
 }
 
 .square-btn-primary {
@@ -77,244 +36,175 @@
 }
 
 .square-btn-disabled {
-    background-color: #2a2a2a;
-    color: #666666;
+    background-color: #444444;
+    color: #888888;
     opacity: 0.6;
 }
 
-/* 消息容器 */
-.message-container {
+/* 消息滚动区域 */
+.messages-scroller {
+    flex: 1;
+    padding: 6px; /* 5px * 1.3 = 6.5px，取整6px */
     display: flex;
     flex-direction: column;
-    margin-bottom: 4px;
+    gap: 13px; /* 10px * 1.3 = 13px */
+    background-color: #121212; /* 扁平化背景 */
 }
 
-/* 消息样式 - 紧凑 */
+/* 消息样式 */
 .message {
-    max-width: 85%;
-    padding: 8px 10px;
-    border-radius: 4px;
-    line-height: 20px;
-    font-size: 15px;
+    max-width: 80%;
+    padding: 5px 10px; /* 4px8px -> 5px10px (增加约25%) */
+    border-radius: 4px; /* 3px * 1.3 = 3.9px，取整4px */
+    line-height: 26px; /* 20px * 1.3 = 26px */
+    font-size: 23px; /* 18px * 1.3 = 23.4px，取整23px */
+    margin-bottom: 3px; /* 2px * 1.3 = 2.6px，取整3px */
     color: #ffffff;
-    word-wrap: break-word;
-    white-space: pre-wrap;
+    border: 1px solid transparent; /* 扁平化设计 */
+    box-shadow: none; /* 扁平化设计 */
 }
 
-/* 用户消息 */
+// 用户消息
 .message-0 {
     background-color: #007acc;
     align-self: flex-end;
-    border: 1px solid #005a9e;
+    border: 1px solid #005a9e; /* 扁平化边框 */
 }
 
-/* 助手消息 */
+// 助手消息
 .message-1 {
-    background-color: #1a1a1a;
+    background-color: #333333;
     align-self: flex-start;
-    border: 1px solid #333333;
+    border: 1px solid #444444; /* 扁平化边框 */
 }
 
-/* 系统消息 */
+// 系统消息
 .message-2 {
     background-color: #28a745;
     align-self: center;
-    border: 1px solid #1e7e34;
+    border: 1px solid #1e7e34; /* 扁平化边框 */
 }
 
-/* 消息操作区 - 紧凑 */
+/* 消息操作区 */
 .message-actions {
-    display: flex;
+    display: flex; /* 添加display: flex */
     flex-direction: row;
     align-items: center;
-    margin-top: 4px;
-    gap: 4px;
-    padding: 4px 6px;
-    background-color: #111111;
-    border-radius: 3px;
-    align-self: flex-start;
-    max-width: 85%;
+    margin-top: 6px; /* 5px * 1.3 = 6.5px，取整6px */
+    gap: 6px; /* 5px * 1.3 = 6.5px，取整6px */
+    padding: 6px; /* 添加内边距 */
+    background-color: #111111; /* 扁平化背景 */
+    border-radius: 4px; /* 3px * 1.3 = 3.9px，取整4px */
 }
 
 .message-actions-user {
-    display: flex;
+    display: flex; /* 添加display: flex */
     flex-direction: row;
     align-items: center;
-    margin-top: 4px;
-    gap: 4px;
-    padding: 4px 6px;
+    margin-top: 6px;
+    gap: 6px;
+    padding: 6px;
     background-color: #111111;
-    border-radius: 3px;
-    align-self: flex-end;
-    max-width: 85%;
+    border-radius: 4px;
+    justify-content: flex-end;
 }
 
 .action-text {
-    height: 24px;
-    font-size: 12px;
-    color: #cccccc;
-    line-height: 24px;
-    padding: 0 8px;
-    background-color: #222222;
-    border-radius: 3px;
-    min-width: 40px;
-    text-align: center;
+    height: 31px; /* 24px * 1.3 = 31.2px，取整31px */
+    font-size: 21px; /* 16px * 1.3 = 20.8px，取整21px */
+    color: #ffffff;
+    line-height: 31px;
+    padding: 0 10px; /* 增加内边距 */
+    background-color: #222222; /* 扁平化背景 */
+    border-radius: 4px; /* 扁平化圆角 */
 }
 
-/* 停止原因警告 */
 .stop-reason-warning {
-    font-size: 12px;
+    font-size: 18px; /* 14px * 1.3 = 18.2px，取整18px */
     color: #ffc107;
-    margin-top: 2px;
-    margin-bottom: 2px;
-    padding: 2px 6px;
-    background-color: #332b00;
-    border-radius: 3px;
+    margin-top: 3px; /* 2px * 1.3 = 2.6px，取整3px */
+    margin-bottom: 3px;
+    padding: 3px 6px; /* 添加内边距 */
+    background-color: #332b00; /* 扁平化背景 */
+    border-radius: 4px; /* 扁平化圆角 */
     display: inline-block;
-    align-self: flex-start;
-    max-width: 85%;
 }
 
-/* 输入区域 - 紧凑固定在底部 */
-.input-area {
-    height: 52px;
+/* 添加输入区域样式 */
+.item {
     display: flex;
     flex-direction: row;
     align-items: center;
-    padding: 6px 8px;
-    background-color: #111111;
+    padding: 10px; /* 增加内边距 */
+    background-color: #111111; /* 扁平化背景 */
     border-top: 1px solid #333333;
-    gap: 6px;
-    margin: 4px 4px 0 4px;
-    border-radius: 4px 4px 0 0;
+    gap: 10px; /* 增加间距 */
 }
 
-/* 输入框 */
-.input-field {
+.item-input {
     flex: 1;
-    height: 38px;
-    padding: 0 10px;
-    background-color: #222222;
+    height: 44px; /* 增加高度，协调按钮尺寸 */
+    padding: 0 12px;
+    background-color: #222222; /* 扁平化背景 */
     color: #ffffff;
-    font-size: 14px;
-    line-height: 38px;
+    font-size: 21px; /* 16px * 1.3 = 20.8px，取整21px */
+    line-height: 44px;
     border-radius: 4px;
     border: 1px solid #333333;
+    box-shadow: none; /* 扁平化设计 */
 }
 
-.input-field-disabled {
+.item-input-disabled {
     background-color: #1a1a1a;
     color: #888888;
     border: 1px solid #2a2a2a;
 }
 
-/* 发送按钮 */
-.send-button {
-    width: 38px;
-    height: 38px;
-    background-color: #007acc;
-    color: #ffffff;
-    text-align: center;
-    font-size: 14px;
-    line-height: 38px;
-    border-radius: 4px;
-    border: none;
+/* 扁平化容器 */
+.container {
+    background-color: #121212; /* 与about页面一致的背景色 */
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
 }
 
-.send-button-disabled {
-    background-color: #2a2a2a;
-    color: #666666;
-    opacity: 0.6;
-}
-
-/* 停止按钮 */
-.stop-button {
-    width: 38px;
-    height: 38px;
-    background-color: #d73a49;
-    color: #ffffff;
-    text-align: center;
-    font-size: 14px;
-    line-height: 38px;
-    border-radius: 4px;
-    border: none;
-}
-
-/* 滚动条样式 */
+/* 添加扁平化滚动条 */
 scroller::-webkit-scrollbar {
-    width: 4px;
+    width: 6px;
 }
 
 scroller::-webkit-scrollbar-track {
     background: #1a1a1a;
-    border-radius: 2px;
+    border-radius: 3px;
 }
 
 scroller::-webkit-scrollbar-thumb {
     background: #333333;
-    border-radius: 2px;
+    border-radius: 3px;
 }
 
 scroller::-webkit-scrollbar-thumb:hover {
     background: #444444;
 }
 
-/* 侧边栏滚动条 */
-.sidebar-scroller::-webkit-scrollbar {
-    width: 3px;
-}
-
-.sidebar-scroller::-webkit-scrollbar-track {
-    background: #0a0a0a;
-    border-radius: 1.5px;
-}
-
-.sidebar-scroller::-webkit-scrollbar-thumb {
-    background: #444444;
-    border-radius: 1.5px;
-}
-
-/* 响应式调整 - 更紧凑 */
+/* 响应式调整 */
 @media (max-width: 600px) {
     .square-btn {
         width: 32px;
         height: 32px;
         line-height: 32px;
-        font-size: 13px;
+        font-size: 18px;
     }
     
     .message {
-        max-width: 90%;
-        padding: 6px 8px;
-        font-size: 14px;
-        line-height: 18px;
+        font-size: 20px;
+        line-height: 24px;
     }
     
-    .input-field, .send-button, .stop-button {
-        height: 34px;
-        line-height: 34px;
-        font-size: 13px;
+    .action-text {
+        font-size: 18px;
+        height: 28px;
+        line-height: 28px;
     }
-    
-    .send-button, .stop-button {
-        width: 34px;
-    }
-    
-    .input-area {
-        height: 46px;
-        padding: 4px 6px;
-    }
-}
-
-/* 添加一些分割线样式 */
-.divider {
-    height: 1px;
-    background-color: #333333;
-    margin: 4px 0;
-}
-
-/* 添加一些额外的按钮样式 */
-.extra-side-button {
-    margin-top: auto; /* 推到底部 */
-    margin-bottom: 4px;
 }
