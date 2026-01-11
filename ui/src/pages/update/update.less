@@ -107,6 +107,17 @@
     background-color: #4a3e1a;
 }
 
+/* 仓库类型颜色 */
+.repo-type-release {
+    color: #28a745;
+    background-color: #1a4a2e;
+}
+
+.repo-type-dev {
+    color: #17a2b8;
+    background-color: #0e3d4a;
+}
+
 /* 版本比较颜色 */
 .version-newer {
     color: #28a745;
@@ -123,55 +134,12 @@
     background-color: #0e3d4a;
 }
 
-/* 仓库信息行 */
-.repo-info-line {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    margin-bottom: 6px;
-    padding: 8px;
-    background-color: #1a1a1a;
-    border-radius: 8px; /* 增加圆角弧度 */
-}
-
-.repo-label {
-    font-size: 14px;
-    color: #888888;
-    min-width: 80px;
-}
-
-.repo-value {
-    font-size: 14px;
-    color: #cccccc;
-    flex: 1;
-    word-wrap: break-word;
-}
-
-.repo-type {
-    font-size: 14px;
-    padding: 6px 12px;
-    border-radius: 6px;
-    font-weight: bold;
-    text-align: center;
-    min-width: 80px;
-}
-
-.repo-type-release {
-    color: #28a745;
-    background-color: #1a4a2e;
-}
-
-.repo-type-dev {
-    color: #17a2b8;
-    background-color: #0e3d4a;
-}
-
 /* 按钮行样式 */
 .button-row {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
-    margin-top: 15px;
+    margin-top: 10px;
     gap: 10px;
 }
 
@@ -217,18 +185,20 @@
     background-color: #138496; /* 点击回亮效果 */
 }
 
-/* 解锁按钮行 */
-.unlock-row {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    margin-top: 10px;
+/* 安装按钮 */
+.install-btn {
+    background-color: #28a745;
+    border-color: #28a745;
 }
 
+.install-btn:active {
+    background-color: #218838; /* 点击回亮效果 */
+}
+
+/* 解锁按钮 */
 .unlock-btn {
     background-color: #6c757d;
     border-color: #6c757d;
-    max-width: 200px;
 }
 
 .unlock-btn-active {

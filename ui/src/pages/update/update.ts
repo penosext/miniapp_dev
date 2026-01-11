@@ -67,7 +67,7 @@ const MIRRORS = [
         buttonName: 'FastGit源',
         enabled: true,
         urlPattern: 'https://download.fastgit.org/{path}',
-        apiPattern: 'https://api.fastgit.org/{path}',
+        apiPattern: '{url}',
         testUrl: 'https://download.fastgit.org'
     },
     {
@@ -193,9 +193,10 @@ const update = defineComponent({
             return this.compareVersions(this.latestVersion, this.currentVersion) > 0 && this.deviceMatched;
         },
 
-        // 是否可以强制安装（解锁模式下）
-        canForceInstall(): boolean {
-            return this.unlockInstall && this.deviceMatched && !!this.latestVersion;
+        // 是否可以安装（有下载链接且设备匹配）
+        canInstall(): boolean {
+            return this.deviceMatched && !!this.downloadUrl && 
+                   (this.unlockInstall || this.compareVersions(this.latestVersion, this.currentVersion) > 0);
         },
 
         formattedFileSize(): string {
@@ -287,9 +288,14 @@ const update = defineComponent({
             return this.unlockInstall ? '锁定安装' : '解锁安装';
         },
 
-        // 解锁按钮颜色
+        // 解锁按钮颜色类
         unlockButtonClass(): string {
             return this.unlockInstall ? 'unlock-btn-active' : 'unlock-btn';
+        },
+
+        // 安装按钮是否可用
+        installButtonDisabled(): boolean {
+            return !this.canInstall || this.status === 'checking' || this.status === 'downloading' || this.status === 'installing';
         },
 
         // 版本比较结果文本

@@ -25,13 +25,13 @@
 <text class="version-label">版本比较:</text>
 <text :class="'version-text ' + versionCompareClass">{{versionCompareText}}</text>
 </div>
-<div class="repo-info-line">
-<text class="repo-label">当前仓库:</text>
-<text class="repo-value">{{currentRepoFullName}}</text>
+<div class="version-line">
+<text class="version-label">当前仓库:</text>
+<text class="version-text">{{currentRepoFullName}}</text>
 </div>
-<div class="repo-info-line">
-<text class="repo-label">仓库类型:</text>
-<text :class="'repo-type ' + (currentRepo === 'release' ? 'repo-type-release' : 'repo-type-dev')">
+<div class="version-line">
+<text class="version-label">仓库类型:</text>
+<text :class="'version-text ' + (currentRepo === 'release' ? 'repo-type-release' : 'repo-type-dev')">
 {{currentRepo === 'release' ? '发布版' : '开发版'}}
 </text>
 </div>
@@ -39,10 +39,11 @@
 <text @click="switchRepo" :class="'action-btn repo-btn ' + (repoButtonDisabled?'disabled':'')">{{repoButtonText}}</text>
 <text @click="handleMainButton" :class="'action-btn main-btn ' + (downloadButtonDisabled?'disabled':'')">{{downloadButtonText}}</text>
 </div>
-<div v-if="showUnlockButton" class="unlock-row">
+<div class="button-row">
 <text @click="toggleUnlock" :class="'action-btn unlock-btn ' + unlockButtonClass">
 {{unlockButtonText}}
 </text>
+<text @click="downloadUpdate" :class="'action-btn install-btn ' + (canInstall?'':'disabled')">下载并安装更新</text>
 </div>
 </div>
 </div>
@@ -102,12 +103,6 @@
 <div class="section">
 <text class="section-title">操作</text>
 <div class="operations-card">
-<div v-if="hasUpdate && status==='available'" class="link-item" @click="downloadUpdate">
-<text class="link-text">下载并安装更新</text>
-</div>
-<div v-else class="text-item">
-<text class="text-content">{{status === 'downloading' || status === 'installing' ? '正在处理...' : '暂无更新'}}</text>
-</div>
 <div class="link-item" @click="openGitHub">
 <text class="link-text">GitHub 页面 ({{currentRepo}})</text>
 </div>
@@ -128,11 +123,12 @@
 2. 左右滑动选择镜像源，点击按钮切换
 3. 点击"切换到开发版/发布版"切换更新源
 4. 点击"解锁安装"可安装任意版本（需设备匹配）
-5. 如果有新版本，点击"下载更新"按钮
-6. 解锁模式下可以强制重装或回退版本
-7. 下载完成后会自动安装
-8. 安装完成后请重启应用
-9. 如果自动更新失败，可以手动下载安装</text>
+5. 点击"下载更新"按钮开始下载最新版本
+6. 点击"下载并安装更新"直接开始安装流程
+7. 解锁模式下可以强制重装或回退版本
+8. 下载完成后会自动安装
+9. 安装完成后请重启应用
+10. 如果自动更新失败，可以手动下载安装</text>
 </div>
 </div>
 </scroller>
