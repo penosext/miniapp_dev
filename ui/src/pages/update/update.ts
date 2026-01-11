@@ -186,25 +186,53 @@ const update = defineComponent({
 
         // 是否可以安装（有下载链接且设备匹配）
         canInstall(): boolean {
+            // 必须有最新版本和下载链接
             if (!this.latestVersion || !this.downloadUrl) {
+                console.log('canInstall: 缺少最新版本或下载链接', {
+                    latestVersion: this.latestVersion,
+                    downloadUrl: !!this.downloadUrl
+                });
                 return false;
             }
             
+            // 设备必须匹配
             if (!this.deviceMatched) {
+                console.log('canInstall: 设备不匹配', {
+                    deviceModel: this.deviceModel,
+                    deviceMatched: this.deviceMatched
+                });
                 return false;
             }
             
             // 如果解锁了安装限制，任何版本都可以安装
             if (this.unlockInstall) {
+                console.log('canInstall: 解锁状态下可以安装');
                 return true;
             }
             
             // 未解锁时，只有新版本可以安装
-            return this.compareVersions(this.latestVersion, this.currentVersion) > 0;
+            const compareResult = this.compareVersions(this.latestVersion, this.currentVersion);
+            const canInstall = compareResult > 0;
+            console.log('canInstall: 未解锁状态', {
+                latestVersion: this.latestVersion,
+                currentVersion: this.currentVersion,
+                compareResult,
+                canInstall
+            });
+            return canInstall;
         },
 
         // 安装按钮文本
         installButtonText(): string {
+            console.log('installButtonText计算:', {
+                canInstall: this.canInstall,
+                latestVersion: this.latestVersion,
+                downloadUrl: !!this.downloadUrl,
+                deviceMatched: this.deviceMatched,
+                unlockInstall: this.unlockInstall,
+                currentVersion: this.currentVersion
+            });
+            
             if (!this.canInstall) {
                 return '暂无更新';
             }
@@ -216,7 +244,7 @@ const update = defineComponent({
                 } else if (compareResult < 0) {
                     return '回退';
                 } else {
-                    return '安装';
+                    return '安装'; // 相同版本也显示为安装
                 }
             } else {
                 // 未解锁时，只有新版本才显示安装
@@ -286,7 +314,7 @@ const update = defineComponent({
 
         // 安装按钮是否可用
         installButtonDisabled(): boolean {
-            // 如果没有可安装的更新，则禁用
+            // 如果不能安装，则禁用
             if (!this.canInstall) {
                 return true;
             }
@@ -476,8 +504,10 @@ const update = defineComponent({
                             this.deviceMatched = true;
                             console.log(`找到匹配的文件: ${matchedAsset.name}`);
                             console.log(`文件匹配当前设备型号: ${this.deviceModel}`);
+                            console.log('下载URL:', this.downloadUrl);
                         } else {
                             this.deviceMatched = false;
+                            this.downloadUrl = '';
                             console.warn(`警告: 未找到适用于 ${this.deviceModel} 型号的更新文件`);
                             
                             if (otherDeviceAssets.length > 0) {
@@ -487,11 +517,19 @@ const update = defineComponent({
                         }
                     } else {
                         this.deviceMatched = false;
+                        this.downloadUrl = '';
                         throw new Error('Release中没有找到资源文件');
                     }
                     
                     // 检查版本比较结果
                     const compareResult = this.compareVersions(this.latestVersion, this.currentVersion);
+                    console.log('版本比较结果:', {
+                        latestVersion: this.latestVersion,
+                        currentVersion: this.currentVersion,
+                        compareResult,
+                        deviceMatched: this.deviceMatched,
+                        downloadUrl: !!this.downloadUrl
+                    });
                     
                     if (compareResult > 0) {
                         if (this.deviceMatched) {

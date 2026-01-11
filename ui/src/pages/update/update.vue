@@ -40,7 +40,7 @@
 <text @click="handleCheckUpdate" :class="'action-btn main-btn ' + (downloadButtonDisabled?'disabled':'')">{{downloadButtonText}}</text>
 </div>
 <div class="button-row">
-<text @click="toggleUnlock" :class="'action-btn unlock-btn ' + unlockButtonClass">
+<text @click="toggleUnlock" :class="'action-btn ' + unlockButtonClass + ' ' + (repoButtonDisabled?'disabled':'')">
 {{unlockButtonText}}
 </text>
 <text @click="downloadUpdate" :class="'action-btn install-btn ' + (installButtonDisabled?'disabled':'')">{{installButtonText}}</text>
