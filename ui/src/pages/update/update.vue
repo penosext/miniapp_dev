@@ -33,14 +33,26 @@
 <text class="version-label">仓库类型:</text>
 <text :class="'version-text ' + (currentRepo === 'release' ? 'repo-type-release' : 'repo-type-dev')">{{currentRepo === 'release' ? '发布版' : '开发版'}}</text>
 </div>
+
+<!-- 修改：按钮使用div包裹，确保样式正确 -->
 <div class="button-row">
-<text @click="switchRepo" :class="'action-btn repo-btn ' + (repoButtonDisabled?'disabled':'')">{{repoButtonText}}</text>
-<text @click="handleCheckUpdate" :class="'action-btn main-btn ' + (downloadButtonDisabled?'disabled':'')">{{downloadButtonText}}</text>
+<div @click="switchRepo" :class="'action-btn repo-btn ' + (repoButtonDisabled?'disabled':'')">
+<text>{{repoButtonText}}</text>
 </div>
+<div @click="handleCheckUpdate" :class="'action-btn main-btn ' + (downloadButtonDisabled?'disabled':'')">
+<text>{{downloadButtonText}}</text>
+</div>
+</div>
+
 <div class="button-row">
-<text @click="toggleUnlock" :class="['action-btn', unlockButtonClass, repoButtonDisabled?'disabled':'']">{{unlockButtonText}}</text>
-<text @click="downloadUpdate" :class="['action-btn', 'install-btn', installButtonDisabled?'disabled':'']">{{installButtonText}}</text>
+<div @click="toggleUnlock" :class="['action-btn', unlockButtonClass, repoButtonDisabled?'disabled':'']">
+<text>{{unlockButtonText}}</text>
 </div>
+<div @click="downloadUpdate" :class="['action-btn', 'install-btn', installButtonDisabled?'disabled':'']">
+<text>{{installButtonText}}</text>
+</div>
+</div>
+
 </div>
 </div>
 

@@ -149,25 +149,25 @@
     width: 100%;
 }
 
-/* 修改：增强按钮样式，确保文字显示 */
+/* 修改：彻底重写按钮样式 */
 .action-btn {
     flex: 1;
     height: 40px;
     line-height: 40px;
     border-radius: 10px;
     font-size: 14px;
-    color: #ffffff !important;
+    color: #ffffff;
     font-weight: bold;
     text-align: center;
     border: 1px solid transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    display: block; /* 改为block确保背景色生效 */
     min-width: 0;
     overflow: hidden; /* 防止内容溢出 */
     white-space: nowrap; /* 防止文字换行 */
     text-overflow: ellipsis; /* 文字过长时显示省略号 */
     padding: 0 8px; /* 添加内边距，确保文字不紧贴边缘 */
+    background-color: #007acc; /* 默认背景色 */
+    border-color: #007acc; /* 默认边框色 */
 }
 
 .action-btn:active {
@@ -184,6 +184,7 @@
 .main-btn {
     background-color: #007acc !important;
     border-color: #007acc !important;
+    color: #ffffff !important;
 }
 
 .main-btn:active {
@@ -194,6 +195,7 @@
 .repo-btn {
     background-color: #17a2b8 !important;
     border-color: #17a2b8 !important;
+    color: #ffffff !important;
 }
 
 .repo-btn:active {
@@ -204,21 +206,24 @@
 .install-btn {
     background-color: #28a745 !important;
     border-color: #28a745 !important;
+    color: #ffffff !important;
 }
 
 .install-btn:active {
     background-color: #218838 !important;
 }
 
-/* 解锁按钮 - 修复黑色问题 */
+/* 解锁按钮 */
 .unlock-btn {
     background-color: #6c757d !important;
     border-color: #6c757d !important;
+    color: #ffffff !important;
 }
 
 .unlock-btn-active {
     background-color: #dc3545 !important;
     border-color: #dc3545 !important;
+    color: #ffffff !important;
 }
 
 .unlock-btn:active, .unlock-btn-active:active {
