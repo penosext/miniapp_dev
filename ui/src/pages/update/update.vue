@@ -31,25 +31,15 @@
 </div>
 <div class="version-line">
 <text class="version-label">仓库类型:</text>
-<text :class="'version-text ' + (currentRepo === 'release' ? 'repo-type-release' : 'repo-type-dev')">
-{{currentRepo === 'release' ? '发布版' : '开发版'}}
-</text>
+<text :class="'version-text ' + (currentRepo === 'release' ? 'repo-type-release' : 'repo-type-dev')">{{currentRepo === 'release' ? '发布版' : '开发版'}}</text>
 </div>
 <div class="button-row">
 <text @click="switchRepo" :class="'action-btn repo-btn ' + (repoButtonDisabled?'disabled':'')">{{repoButtonText}}</text>
 <text @click="handleCheckUpdate" :class="'action-btn main-btn ' + (downloadButtonDisabled?'disabled':'')">{{downloadButtonText}}</text>
 </div>
 <div class="button-row">
-<text @click="toggleUnlock" 
-      :class="['action-btn', unlockButtonClass, repoButtonDisabled?'disabled':'']"
-      style="flex: 1; height: 40px; line-height: 40px; border-radius: 10px; font-size: 14px; color: #ffffff; font-weight: bold; text-align: center; display: flex; align-items: center; justify-content: center;">
-{{unlockButtonText}}
-</text>
-<text @click="downloadUpdate" 
-      :class="['action-btn', 'install-btn', installButtonDisabled?'disabled':'']"
-      style="flex: 1; height: 40px; line-height: 40px; border-radius: 10px; font-size: 14px; color: #ffffff; font-weight: bold; text-align: center; display: flex; align-items: center; justify-content: center;">
-{{installButtonText}}
-</text>
+<text @click="toggleUnlock"       :class="['action-btn', unlockButtonClass, repoButtonDisabled?'disabled':'']"      style="flex: 1; height: 40px; line-height: 40px; border-radius: 10px; font-size: 14px; color: #ffffff; font-weight: bold; text-align: center; display: flex; align-items: center; justify-content: center;">{{unlockButtonText}}</text>
+<text @click="downloadUpdate"       :class="['action-btn', 'install-btn', installButtonDisabled?'disabled':'']"      style="flex: 1; height: 40px; line-height: 40px; border-radius: 10px; font-size: 14px; color: #ffffff; font-weight: bold; text-align: center; display: flex; align-items: center; justify-content: center;">{{installButtonText}}</text>
 </div>
 </div>
 </div>
