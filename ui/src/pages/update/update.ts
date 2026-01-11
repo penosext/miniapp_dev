@@ -150,7 +150,6 @@ const update = defineComponent({
             
             // 解锁安装限制
             unlockInstall: false, // 是否解锁安装限制
-            showUnlockButton: false, // 是否显示解锁按钮
         };
     },
 
@@ -185,24 +184,28 @@ const update = defineComponent({
             }
         },
 
-        hasUpdate(): boolean {
-            if (!this.latestVersion) return false;
-            // 如果解锁了安装限制，即使版本相同或更低也显示有更新
-            if (this.unlockInstall) {
-                return this.deviceMatched;
-            }
-            return this.compareVersions(this.latestVersion, this.currentVersion) > 0 && this.deviceMatched;
-        },
-
         // 是否可以安装（有下载链接且设备匹配）
         canInstall(): boolean {
-            return this.deviceMatched && !!this.downloadUrl && 
-                   (this.unlockInstall || this.compareVersions(this.latestVersion, this.currentVersion) > 0);
+            if (!this.latestVersion || !this.downloadUrl) {
+                return false;
+            }
+            
+            if (!this.deviceMatched) {
+                return false;
+            }
+            
+            // 如果解锁了安装限制，任何版本都可以安装
+            if (this.unlockInstall) {
+                return true;
+            }
+            
+            // 未解锁时，只有新版本可以安装
+            return this.compareVersions(this.latestVersion, this.currentVersion) > 0;
         },
 
         // 安装按钮文本
         installButtonText(): string {
-            if (!this.deviceMatched || !this.downloadUrl) {
+            if (!this.canInstall) {
                 return '暂无更新';
             }
             
@@ -213,15 +216,11 @@ const update = defineComponent({
                 } else if (compareResult < 0) {
                     return '回退';
                 } else {
-                    return '安装'; // 相同版本也显示为安装
+                    return '安装';
                 }
             } else {
                 // 未解锁时，只有新版本才显示安装
-                if (this.compareVersions(this.latestVersion, this.currentVersion) > 0) {
-                    return '安装';
-                } else {
-                    return '暂无更新';
-                }
+                return '安装';
             }
         },
 
@@ -242,14 +241,6 @@ const update = defineComponent({
             return `${(size / (1024 * 1024 * 1024)).toFixed(1)} GB`;
         },
 
-        // 显示版本信息，包括型号
-        versionInfo(): string {
-            if (this.latestVersion) {
-                return `最新版本: v${this.latestVersion} (${this.deviceModel} 型号)`;
-            }
-            return `当前版本: v${this.currentVersion} (${this.deviceModel} 型号)`;
-        },
-
         // 当前设备对应的预期文件名
         currentDeviceFilename(): string {
             if (this.latestVersion) {
@@ -258,29 +249,14 @@ const update = defineComponent({
             return `miniapp_${this.deviceModel}_v${this.currentVersion}.amr`;
         },
 
-        // 显示更新状态摘要
-        updateStatusSummary(): string {
-            if (this.status === 'checking') return '正在检查更新...';
-            if (this.status === 'available') {
-                if (this.deviceMatched) {
-                    return `发现新版本 v${this.latestVersion} (${this.deviceModel})`;
-                } else {
-                    return `发现新版本但不适用于当前设备 (${this.deviceModel})`;
-                }
-            }
-            if (this.status === 'updated') return `已是最新版本 v${this.currentVersion} (${this.deviceModel})`;
-            if (this.status === 'error') return '检查更新失败';
-            return `当前版本: v${this.currentVersion} (${this.deviceModel})`;
+        // 当前仓库完整名称
+        currentRepoFullName(): string {
+            return `${this.githubOwner}/${this.currentRepoName}`;
         },
 
         // 当前仓库显示文本
         repoButtonText(): string {
             return this.currentRepo === 'release' ? '切换到开发版' : '切换到发布版';
-        },
-
-        // 当前仓库完整名称
-        currentRepoFullName(): string {
-            return `${this.githubOwner}/${this.currentRepoName}`;
         },
 
         // 下载按钮文本（固定为"检查更新"）
@@ -310,23 +286,13 @@ const update = defineComponent({
 
         // 安装按钮是否可用
         installButtonDisabled(): boolean {
-            // 如果没有下载链接或设备不匹配，则禁用
-            if (!this.downloadUrl || !this.deviceMatched) {
+            // 如果没有可安装的更新，则禁用
+            if (!this.canInstall) {
                 return true;
             }
             
             // 如果正在检查、下载或安装，则禁用
-            if (this.status === 'checking' || this.status === 'downloading' || this.status === 'installing') {
-                return true;
-            }
-            
-            // 未解锁时，只有新版本才可用
-            if (!this.unlockInstall) {
-                return this.compareVersions(this.latestVersion, this.currentVersion) <= 0;
-            }
-            
-            // 解锁后，只要设备匹配就有下载链接就可用
-            return false;
+            return this.status === 'checking' || this.status === 'downloading' || this.status === 'installing';
         },
 
         // 版本比较结果文本
@@ -527,9 +493,6 @@ const update = defineComponent({
                     // 检查版本比较结果
                     const compareResult = this.compareVersions(this.latestVersion, this.currentVersion);
                     
-                    // 确定是否显示解锁按钮
-                    this.showUnlockButton = this.deviceMatched && !!this.latestVersion;
-                    
                     if (compareResult > 0) {
                         if (this.deviceMatched) {
                             this.status = 'available';
@@ -622,15 +585,15 @@ const update = defineComponent({
             this.isDownloading = false;
         },
 
-        // 下载更新 - 使用更简单的方法
+        // 下载更新
         async downloadUpdate() {
             if (!this.shellInitialized || !Shell) {
                 showError('Shell模块未初始化');
                 return;
             }
             
-            if (!this.downloadUrl) {
-                showError('没有可用的下载链接');
+            if (!this.canInstall) {
+                showError('没有可安装的更新');
                 return;
             }
             
@@ -900,22 +863,8 @@ const update = defineComponent({
             
             if (this.unlockInstall) {
                 showInfo('已解锁安装限制，可以安装任意版本（需设备型号匹配）');
-                // 如果当前有可用更新，更新状态
-                if (this.deviceMatched && this.latestVersion) {
-                    const compareResult = this.compareVersions(this.latestVersion, this.currentVersion);
-                    if (compareResult <= 0) {
-                        this.status = 'available';
-                    }
-                }
             } else {
                 showInfo('已锁定安装限制，仅可安装新版本');
-                // 重新检查更新状态
-                if (this.deviceMatched && this.latestVersion) {
-                    const compareResult = this.compareVersions(this.latestVersion, this.currentVersion);
-                    if (compareResult <= 0) {
-                        this.status = 'updated';
-                    }
-                }
             }
             
             console.log('解锁状态:', this.unlockInstall);
