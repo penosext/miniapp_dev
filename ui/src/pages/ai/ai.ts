@@ -33,6 +33,7 @@ const ai = defineComponent({
             isStreaming: false,
             messages: [] as ConversationNode[],
             jumpToMessageId: '',
+
             currentConversationId: '',
         };
     },

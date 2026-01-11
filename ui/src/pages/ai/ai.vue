@@ -18,10 +18,9 @@
 -->
 
 <template>
-    <div class="container">
-        <div style="flex: 1; display: flex; flex-direction: column;">
+    <div>
+        <div class="container" style="display: flex; flex-direction: column;">
             <div style="flex: 1; display: flex; flex-direction: row;">
-                <!-- 消息区域 -->
                 <scroller ref="messageScroller" class="messages-scroller" scroll-direction="vertical"
                     :show-scrollbar="true">
                     <div v-for="message in displayMessages" :key="message.id">
@@ -43,7 +42,6 @@
                     </div>
                 </scroller>
 
-                <!-- 侧边按钮 -->
                 <div class="side-buttons">
                     <text @click="openHistory"
                         :class="'square-btn' + (isStreaming ? ' square-btn-disabled' : '')">历</text>
@@ -54,7 +52,6 @@
                 </div>
             </div>
 
-            <!-- 输入区域 -->
             <div class="item">
                 <text :class="'item-input' + (isStreaming ? ' item-input-disabled' : '')" @click="loadSoftKeyboard">{{
                     currentInput || '点击输入...' }}</text>
